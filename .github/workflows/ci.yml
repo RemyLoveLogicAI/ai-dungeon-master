@@ -8,20 +8,31 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same ref supersedes the run in flight.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+      # Lint with the locked ruff rather than whatever `uvx ruff` resolves to,
+      # so an upstream release cannot turn an unrelated PR red.
       - name: Lint (ruff)
-        run: uvx ruff check .
+        run: |
+          uv sync --frozen --dev
+          uv run ruff check .
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -35,5 +46,40 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen --dev
-      - name: Test (pytest)
-        run: uv run pytest -v
+      # --cov applies the fail_under gate configured in pyproject.toml.
+      - name: Test (pytest) with coverage gate
+        run: uv run pytest -v --cov --cov-report=term-missing
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Build distributions
+        run: uv build
+      # Installing the wheel into a throwaway venv is the only check that the
+      # packaged artifact, and not just the checkout, actually works. Both
+      # entry points are run, and the shipped licence metadata is asserted, so a
+      # packaging regression fails here rather than at the release tag.
+      - name: Smoke-test the wheel (entry points + licence metadata)
+        run: |
+          VENV="$RUNNER_TEMP/wheel-venv"
+          uv venv "$VENV" --python 3.12
+          uv pip install --python "$VENV/bin/python" dist/*.whl
+          "$VENV/bin/dungeon-master" | tail -3
+          "$VENV/bin/dungeon-master-tui" | tail -1
+          "$VENV/bin/python" - <<'PY'
+          import importlib.metadata as metadata
+
+          meta = metadata.metadata("ai-dungeon-master")
+          assert meta["License-Expression"] == "MIT", meta["License-Expression"]
+          print("licence:", meta["License-Expression"])
+          PY
+        env:
+          # Keep the generated WAVs off the runner's cache directory.
+          AI_DM_AUDIO_DIR: ${{ runner.temp }}/ai-dm-audio
