@@ -39,9 +39,9 @@ RENDER_PREFIX = "rebuilt, not stored: "
 HERO_ROLLS = (15, 3, 8)
 
 EXPECTED_NOTES = (
-    "spell slots are counted back from the recorded attacks, not stored",
-    "enemy narrative lines are not in the envelope, so the feed is rebuilt from messages",
-    "the hero's conditions and action economy reset each round and are not stored",
+    "spell slots are counted back from the recorded attacks",
+    "enemy narrative lines are not in the envelope, so the feed shows only recorded results",
+    "the hero's conditions and action economy reset each round",
 )
 
 

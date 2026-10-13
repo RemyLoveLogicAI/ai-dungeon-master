@@ -71,9 +71,9 @@ DEFAULT_LOG_FILENAME = "tui-encounter.json"
 #: attacks, and nothing about the fiction or the resource bookkeeping around
 #: them.
 RESUME_NOTES = (
-    "spell slots are counted back from the recorded attacks, not stored",
-    "enemy narrative lines are not in the envelope, so the feed is rebuilt from messages",
-    "the hero's conditions and action economy reset each round and are not stored",
+    "spell slots are counted back from the recorded attacks",
+    "enemy narrative lines are not in the envelope, so the feed shows only recorded results",
+    "the hero's conditions and action economy reset each round",
 )
 
 
