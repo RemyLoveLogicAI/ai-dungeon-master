@@ -12,10 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+      - name: Verify version, changelog, and release gates
+        run: python scripts/verify_release.py "${GITHUB_REF_NAME}"
       - name: Install dependencies
         run: uv sync --frozen --dev
       - name: Test before release

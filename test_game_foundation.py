@@ -94,6 +94,61 @@ def test_scenario_rejects_invalid_graph_and_duplicate_choice_ids():
         )
 
 
+def test_scenario_copies_mutable_collections_and_rejects_invalid_text():
+    choices = [Choice("go", "Go", "end")]
+    start = Scene("start", "Start", "Opening", choices)
+    scenes = [start, Scene("end", "End", "Finished")]
+    scenario = Scenario("mutable", "1", "Title", "", "test", "start", scenes)
+    choices.clear()
+    scenes.clear()
+
+    assert scenario.scenes[0].choices == (Choice("go", "Go", "end"),)
+    assert len(scenario.scenes) == 2
+
+    with pytest.raises(ValueError, match="required"):
+        Scenario(" ", "1", "Title", "", "test", "start", (Scene("start", "", ""),))
+    with pytest.raises(ValueError, match="scene ids"):
+        Scenario(
+            "blank-scene",
+            "1",
+            "Title",
+            "",
+            "test",
+            "start",
+            (Scene("start", "", ""), Scene(" ", "", "")),
+        )
+    with pytest.raises(ValueError, match="choice ids"):
+        Scenario(
+            "blank-choice",
+            "1",
+            "Title",
+            "",
+            "test",
+            "start",
+            (
+                Scene("start", "", "", (Choice(" ", "Go", "end"),)),
+                Scene("end", "", ""),
+            ),
+        )
+    with pytest.raises(ValueError, match="player-facing"):
+        Scenario(
+            "blank-text",
+            "1",
+            "Title",
+            "",
+            "test",
+            "start",
+            (
+                Scene("start", "", "", (Choice("go", "  ", "end"),)),
+                Scene("end", "", ""),
+            ),
+        )
+    with pytest.raises(TypeError, match="description must be a string"):
+        Scenario("bad-description", "1", "Title", object(), "test", "start", (Scene("start", "", ""),))
+    with pytest.raises(TypeError, match="titles and narratives"):
+        Scenario("bad-scene-text", "1", "Title", "", "test", "start", (Scene("start", object(), ""),))
+
+
 def test_session_choice_is_immutable_ordered_and_rejects_unavailable_actions():
     initial = start_session(STARTER_SCENARIO)
     next_session = choose(initial, STARTER_SCENARIO, "follow_the_bell")
@@ -104,11 +159,42 @@ def test_session_choice_is_immutable_ordered_and_rejects_unavailable_actions():
     assert next_session.events[0].type == "choice_selected"
     assert next_session.events[0].choice_id == "follow_the_bell"
     assert next_session.events[0].target_scene == "sunken_shrine"
+    final_session = choose(next_session, STARTER_SCENARIO, "relight_the_lantern")
+    assert [event.sequence for event in final_session.events] == [1, 2]
+    assert next_session.events == final_session.events[:1]
 
     with pytest.raises(ValueError, match="not available"):
         choose(next_session, STARTER_SCENARIO, "help_the_courier")
     with pytest.raises(ValueError, match="different scenario"):
         choose(GameSession("another-game", "moonlit_causeway"), STARTER_SCENARIO, "follow_the_bell")
+    versioned = Scenario(
+        id=STARTER_SCENARIO.id,
+        version="2.0.0",
+        title=STARTER_SCENARIO.title,
+        description=STARTER_SCENARIO.description,
+        author=STARTER_SCENARIO.author,
+        start_scene=STARTER_SCENARIO.start_scene,
+        scenes=STARTER_SCENARIO.scenes,
+    )
+    with pytest.raises(ValueError, match="different scenario version"):
+        choose(initial, versioned, "follow_the_bell")
+    with pytest.raises(ValueError, match="contiguous"):
+        GameSession(
+            STARTER_SCENARIO.id,
+            "sunken_shrine",
+            events=(next_session.events[0], next_session.events[0]),
+            scenario_version=STARTER_SCENARIO.version,
+        )
+
+    caller_events = list(next_session.events)
+    copied_session = GameSession(
+        next_session.game_id,
+        next_session.current_scene,
+        events=caller_events,
+        scenario_version=next_session.scenario_version,
+    )
+    caller_events.clear()
+    assert copied_session.events == next_session.events
 
 
 def test_mcp_games_v1_export_matches_game_definition_shape_deterministically():
@@ -141,6 +227,9 @@ def test_agentsurface_v01_export_is_flat_reachable_and_whitelisted():
     assert set(blueprint) == {"surface", "dataModel", "components", "intents"}
     assert set(blueprint["surface"]) == {"id", "title", "subtitle", "width"}
     assert blueprint["surface"]["width"] in {"compact", "wide"}
+    assert blueprint["dataModel"]["choice_id"] not in {
+        choice.id for choice in STARTER_SCENARIO.scenes_by_id[STARTER_SCENARIO.start_scene].choices
+    }
 
     components = blueprint["components"]
     by_id = {component["id"]: component for component in components}

@@ -26,6 +26,16 @@ def attack(ac=15, modifier=5, dice=1, sides=8, dmg_mod=3, mode=AdvantageMode.NOR
 
 
 class TestResolveAttack(unittest.TestCase):
+    def test_invalid_damage_dice_are_rejected_before_the_attack_roll(self):
+        for dice, sides, error in (
+            (-1, 8, "count must be non-negative"),
+            (1, 0, "sides must be positive"),
+        ):
+            with self.subTest(dice=dice, sides=sides), mock.patch(RANDINT) as rng:
+                with self.assertRaisesRegex(ValueError, error):
+                    attack(dice=dice, sides=sides)
+                rng.assert_not_called()
+
     def test_natural_1_always_misses(self):
         with mock.patch(RANDINT, side_effect=[1, 1]):
             res = attack(ac=1, modifier=100)

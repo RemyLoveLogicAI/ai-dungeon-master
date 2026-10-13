@@ -85,6 +85,10 @@ def resolve_attack(
     damage_type: DamageType,
     advantage: AdvantageMode = AdvantageMode.NORMAL
 ) -> AttackResolution:
+    if damage_dice_count < 0:
+        raise ValueError("count must be non-negative")
+    if damage_die_sides <= 0:
+        raise ValueError("sides must be positive")
     roll = roll_d20(attack_modifier, advantage)
     is_hit = False
     is_critical = False

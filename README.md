@@ -63,8 +63,11 @@ uv run pytest -v
 uv run ruff check .
 ```
 
-The CI workflow runs Ruff and pytest on Python 3.10–3.14. No runtime
+The CI workflow runs Ruff and pytest on Python 3.10, 3.12, 3.13, and 3.14. No runtime
 dependencies are added by the foundation.
+
+Product requirements, feature-to-release traceability, the 1.0 MVP gate, and
+release safeguards are documented in [docs/product](docs/product/README.md).
 
 ## CI/CD
 
