@@ -12,12 +12,28 @@ where possible.
 - Versioned, deterministic MCP Games and AgentSurface export contracts.
 - Architecture, safety, licensing, and integration boundaries documented.
 
-## 1 — Deterministic simulation boundary
+## 1 — Deterministic simulation boundary (partially implemented)
 
-- Separate authoritative campaign state in MCP Games from per-encounter engine
-  state in this repository; define compact validated request/result schemas.
-- Add an injectable/seeded dice source and replayable combat events before
-  claiming deterministic simulation.
+- **Implemented:** injectable dice sources (`DiceSource` with module-random,
+  seeded, scripted, and recording implementations) threaded through every roll,
+  plus the `AttackRequest` value object that isolates every non-dice attack
+  input.
+- **Implemented:** replayable combat events. `combat_events.py` records one
+  attack as a `combat-attack-event/1` event plus a `combat-attack-result/1`
+  result, and re-derives the resolution from the recorded rolls alone;
+  `combat_runner.py` logs and verifies them per run.
+- **Implemented:** the durable `combat-encounter-log/1` envelope in
+  `combat_log.py`, with strict fail-closed loading, one-version-at-a-time
+  migration (unknown newer versions are refused, not guessed), bounded retention
+  via `trim_log`, and size-guarded save/load. Replay, migration, retention, and
+  every rejection path are covered by `test_combat_log.py`.
+- **Open:** the envelope is a contract, not a persistence service. There is no
+  scheduling, replication, deletion, or cross-process concurrency story, and the
+  payload is validated by this repository's own readers rather than by a
+  published JSON Schema that a consumer validates against.
+- **Open:** separate authoritative campaign state in MCP Games from
+  per-encounter engine state in this repository; define compact validated
+  request/result schemas shared with the consumer.
 - Define `dm/init_encounter` and `dm/resolve_turn` as versioned adapters only
   after idempotency, error behavior, ownership, and resource limits are tested.
 - Keep the D20 scenario here as a reference fixture; narrative/campaign

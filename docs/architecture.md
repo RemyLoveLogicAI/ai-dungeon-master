@@ -59,19 +59,87 @@ Present in this worktree: D20 attack-resolution functions, stance-based
 encounter AI, a command-line combat demonstration, procedural WAV sound effects,
 the small session/scenario/export foundation, and a local presentation layer
 (`genui.py` + `tui_runner.py`) that renders an ANSI terminal surface and emits a
-declarative `SurfaceBlueprint`. The combat functions currently use Python's
-shared `random` module; a seeded/injected random source and replay-stable
-simulation contract are **not** implemented yet. No full rules expansion,
-ambient audio engine, MCP server/tools, web, Tauri, or Android artifact is part
-of this worktree.
+declarative `SurfaceBlueprint`. No full rules expansion, ambient audio engine,
+MCP server/tools, web, Tauri, or Android artifact is part of this worktree.
+
+## Deterministic simulation boundary
+
+Rolls are injectable. `d20_rules.DiceSource` is a protocol with four
+implementations: `ModuleRandomDiceSource` (the default, which delegates to the
+shared `random` module and preserves historical behavior),
+`SeededDiceSource` (a private `random.Random(seed)` stream that never disturbs
+global state), `ScriptedDiceSource` (a fixed sequence), and
+`RecordingDiceSource` (wraps another source and records every result).
+`roll_dice`, `roll_d20`, `resolve_saving_throw`, `resolve_rest`, and
+`resolve_attack` take an optional `dice` argument, so a caller opts into
+reproducibility without changing the default.
+
+`AttackRequest` is the complete input to one attack: it holds every parameter
+except the dice, so a request plus a recorded roll sequence fully determines the
+result. `resolve_attack` keeps its original signature and delegates to
+`resolve_attack_request`. `combat_events.py` records an attack as a
+`combat-attack-event/1` event plus the `combat-attack-result/1` result it
+produced (`record_attack`), and re-derives the resolution from the recorded
+rolls alone (`replay_attack`, `is_replayable`). Leftover recorded dice are
+rejected, so a record cannot carry results the attack never spent.
+
+`combat_log.py` wraps those pairs in the versioned `combat-encounter-log/1`
+envelope and owns the three boundaries the in-memory records cannot:
+
+- **Validation.** Loading is strict and fails closed. A wrong type raises
+  `TypeError`, a wrong value raises `ValueError`, unknown enum members and die
+  results illegal for their die are refused, and `bool` is never accepted where
+  an integer belongs. Payloads are bounded by entry count and byte size.
+- **Migration.** `migrate_log` upgrades an older envelope one version at a time
+  through a supplied migration table, requiring each step to advance exactly one
+  version. A version *newer* than the reader's is refused rather than guessed,
+  and an older version with no registered migration is refused rather than
+  silently misread.
+- **Retention.** `trim_log` keeps only the most recent entries and records how
+  many were dropped, so a log cannot grow without bound. A trimmed log keeps its
+  original sequence numbers and stays verifiable, and the `dropped` count plus
+  the retained tail form a checkable invariant.
+
+`combat_runner.run_simulated_encounter` accepts a dice source and an optional
+log path: it verifies that every logged event replays identically, and when
+asked to save, re-loads the file through the strict boundary and verifies it
+again. Verifying a *reloaded* log is the real test: the resolution is a pure
+function of the request and the recorded rolls, and the stored result must match
+what a fresh replay produces, so tampering and corruption are both detectable.
+
+This envelope is a **format and contract, not a persistence service**. Nothing
+here schedules, replicates, deletes, or concurrently coordinates stored data;
+retention is an explicit call, not a background policy. Campaign and session
+persistence still belong to MCP Games. The payload is validated by these
+readers rather than by a published JSON Schema a consumer validates against, and
+seeding every stochastic path is still not enforced by a contract.
+
+Audio is outside the simulation's stream. `audio_synth` draws its noise from a
+private `random.Random()` rather than the shared `random` module, so synthesising
+sound effects cannot shift a combat roll: with `seed(1234)` the encounter used to
+roll damage 4 / d20 3 on its own but damage 0 / d20 9 once the SFX generator had
+run first.
+
+The encounter AI's turn choice is a **query**. `EncounterEnemy.decide_turn_action`
+computes the stance rather than storing it and reports a spell's slot cost on the
+decision instead of deducting it, so previewing a turn - or asking twice - cannot
+change the game. `commit_decision` applies that cost once a turn is really taken.
 
 The `genui.py` blueprint and TUI renderer are **local, disposable clients**, not
 the production AgentSurface renderer. They exist to exercise the result/state
 handoff inside this repo; the ephemeral UI blueprint and its browser renderer
-remain owned upstream by `agentsurface`. The `agentsurface-blueprint/0.1`
-export in `game_foundation.py` and the `SurfaceBlueprint` in `genui.py` are two
-distinct, unreconciled shapes: neither is the authoritative cross-repo contract
-yet, and `genui.py` output has not been validated by any upstream validator.
+remain owned upstream by `agentsurface`.
+
+Both producers now speak **one** contract.
+`game_foundation.validate_agentsurface_v01` is the single definition of
+`agentsurface-blueprint/0.1` - a `surface` descriptor, a `dataModel`, a flat
+`components` array linked by `children` ids, and the declared `intents` - and it
+fails closed on every violation. It is applied to the output of both the
+scenario adapter (`to_agentsurface_v01`) and the generative-surface exporter
+(`SurfaceBlueprint.to_agentsurface_v01`), so the two cannot drift into private,
+mutually incompatible shapes. A blueprint keeps its own parent-pointer view in
+`to_dict()` for local rendering, but the interoperable form is the validated
+envelope.
 
 The proposed future MCP-facing tool names are `dm/init_encounter`,
 `dm/resolve_turn`, `dm/render_surface`, and `dm/synthesize_audio`. They are
@@ -86,9 +154,11 @@ authoritative in MCP Games, and UI rendering ephemeral in AgentSurface; see
   They do not invoke MCP, access the network, or modify any external repo.
 - **No model/vendor layer.** Content generation and model-provider policy remain
   future decisions behind a later boundary; current scenarios are hand-authored.
-- **No persistence claim.** The session event tuple is in-memory only. A durable
-  event format, replay/version migration policy, and storage backend are future
-  work.
+- **No persistence service.** The session event tuple is in-memory only. A
+  combat log has a durable, versioned format with migration and retention, but
+  writing one is an explicit call to `save_log`; there is no storage backend,
+  scheduler, replication, or concurrency story, and campaign state remains with
+  MCP Games.
 - **Untrusted content stays data.** Strings remain plain text in both exports.
   AgentSurface's renderer contract requires text rendering with `textContent`;
   never interpolate scenario strings into generated HTML or executable code.

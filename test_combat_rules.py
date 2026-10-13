@@ -96,19 +96,61 @@ class TestEncounterEnemyDecisions(unittest.TestCase):
                 enemy.decide_turn_action(distance).action, CombatActionType.FLEE
             )
 
-    def test_tactical_caster_uses_spell_at_range_and_spends_slot(self):
+    def test_deciding_a_spell_reports_its_cost_without_spending_it(self):
+        """Regression: deciding used to be a mutation.
+
+        ``decide_turn_action`` decremented ``spell_slots`` itself, so previewing a
+        turn - or simply asking twice - spent the enemy's slots and changed the
+        game. The decision now reports the cost; the caller commits it.
+        """
         enemy = EncounterEnemy(max_hp=100, spell_slots=2)
         self.assertEqual(enemy.stance, AIStance.TACTICAL)
-        decision = enemy.decide_turn_action(4.0)
-        self.assertEqual(decision.action, CombatActionType.SPELL)
-        self.assertEqual(decision.damage_type, DamageType.FIRE)
-        self.assertEqual(enemy.spell_slots, 1)
 
-    def test_tactical_caster_melees_when_close(self):
+        first = enemy.decide_turn_action(4.0)
+        second = enemy.decide_turn_action(4.0)
+
+        self.assertEqual(first.action, CombatActionType.SPELL)
+        self.assertEqual(first.damage_type, DamageType.FIRE)
+        self.assertEqual(first.spell_slots_spent, 1)
+        self.assertEqual(second.action, CombatActionType.SPELL)
+        self.assertEqual(enemy.spell_slots, 2, "deciding must not spend the slot")
+        self.assertEqual(enemy.stance, AIStance.TACTICAL)
+
+    def test_committing_a_spell_decision_spends_the_slot_until_exhausted(self):
+        enemy = EncounterEnemy(max_hp=100, spell_slots=2)
+
+        enemy.commit_decision(enemy.decide_turn_action(4.0))
+        self.assertEqual(enemy.spell_slots, 1)
+        self.assertEqual(enemy.stance, AIStance.TACTICAL)
+
+        enemy.commit_decision(enemy.decide_turn_action(4.0))
+        self.assertEqual(enemy.spell_slots, 0)
+        # Out of slots, the caster falls back to its aggressive stance.
+        self.assertEqual(enemy.stance, AIStance.AGGRESSIVE)
+
+    def test_tactical_caster_melees_when_close_and_commits_nothing(self):
         enemy = EncounterEnemy(max_hp=100, spell_slots=2)
         decision = enemy.decide_turn_action(1.0)
         self.assertEqual(decision.action, CombatActionType.MELEE)
+        self.assertEqual(decision.spell_slots_spent, 0)
+        enemy.commit_decision(decision)
         self.assertEqual(enemy.spell_slots, 2)
+
+    def test_aggressive_enemy_melees_without_spending_slots(self):
+        """The default stance path was never executed by the suite before."""
+        enemy = EncounterEnemy(max_hp=100, spell_slots=0)
+        self.assertEqual(enemy.stance, AIStance.AGGRESSIVE)
+
+        decision = enemy.decide_turn_action(6.0)
+
+        self.assertEqual(decision.action, CombatActionType.MELEE)
+        self.assertEqual(decision.action_name, "Rending Talons")
+        self.assertEqual(decision.attack_modifier, 5)
+        self.assertEqual(decision.damage_type, DamageType.SLASHING)
+        self.assertEqual(decision.spell_slots_spent, 0)
+        enemy.commit_decision(decision)
+        self.assertEqual(enemy.spell_slots, 0)
+        self.assertEqual(enemy.stance, AIStance.AGGRESSIVE)
 
     def test_defensive_dodges_up_close_and_throws_at_range(self):
         enemy = EncounterEnemy(max_hp=100)

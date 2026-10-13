@@ -1,6 +1,10 @@
 import json
 
+import pytest
+
 import tui_runner
+from game_foundation import STARTER_SCENARIO
+from game_foundation import to_agentsurface_v01 as scenario_export
 from genui import (
     ANSI,
     GenUIBlueprintFactory,
@@ -158,6 +162,77 @@ def test_tui_encounter_runs_to_completion_and_returns_a_blueprint(monkeypatch):
         component["type"] == UIComponentType.ACTION_BUTTON.value
         for component in payload["components"]
     )
+
+
+def test_export_matches_the_shared_agentsurface_contract():
+    """The local blueprint and the scenario adapter emit one envelope shape.
+
+    Previously the two producers declared the same adapter version but emitted
+    different structures (``surfaceId``/``theme``/``parentId`` here versus
+    ``surface``/``dataModel``/``children`` there), so no consumer could handle
+    both.
+    """
+    envelope = _build_blueprint().to_agentsurface_v01()
+    reference = scenario_export(STARTER_SCENARIO)
+
+    assert set(envelope) == set(reference) == {
+        "surface",
+        "dataModel",
+        "components",
+        "intents",
+    }
+    assert envelope["surface"] == {
+        "id": "encounter-round-1",
+        "title": "Dungeon Crypt Encounter",
+        "subtitle": "",
+        "width": "wide",
+    }
+    assert json.loads(json.dumps(envelope)) == envelope
+
+
+def test_exported_components_are_flat_unique_and_reachable_from_root():
+    envelope = _build_blueprint().to_agentsurface_v01()
+    components = envelope["components"]
+    by_id = {component["id"]: component for component in components}
+
+    assert len(by_id) == len(components)
+    assert all("parentId" not in component for component in components)
+    assert all(set(component) <= {"id", "type", "props", "children"} for component in components)
+
+    reachable = set()
+    pending = ["root"]
+    while pending:
+        current = pending.pop()
+        assert current not in reachable
+        reachable.add(current)
+        pending.extend(by_id[current].get("children", []))
+    assert reachable == set(by_id)
+
+
+def test_exported_buttons_declare_routeable_intents_and_bound_payloads():
+    envelope = _build_blueprint().to_agentsurface_v01()
+    by_id = {component["id"]: component for component in envelope["components"]}
+
+    assert set(envelope["intents"]) == {
+        "HERO_ATTACK",
+        "HERO_DODGE",
+        "HERO_CAST_SPELL",
+        "TAKE_REST",
+    }
+
+    attack = by_id["btn-attack"]
+    assert attack["type"] == "Button"
+    action = attack["props"]["action"]
+    assert action["intent"] in envelope["intents"]
+    assert action["payloadKeys"]
+    assert all(key in envelope["dataModel"] for key in action["payloadKeys"])
+    # Parameters travel as bound values a host reads, never as executed props.
+    assert envelope["dataModel"]["btn-attack.target"] == "Shadow Gargoyle"
+
+
+def test_export_rejects_a_blueprint_with_no_components():
+    with pytest.raises(ValueError):
+        SurfaceBlueprint(surfaceId="empty", title="Empty").to_agentsurface_v01()
 
 
 def test_console_entry_point_returns_none_so_sys_exit_succeeds(monkeypatch):

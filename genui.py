@@ -15,6 +15,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
+from game_foundation import validate_agentsurface_v01
+
 
 class UIComponentType(Enum):
     SURFACE = "Surface"
@@ -48,9 +50,19 @@ class UIComponent:
 
 @dataclass
 class SurfaceBlueprint:
+    """A local, build-time description of one surface.
+
+    ``to_dict`` is the builder's own view: a parent-pointer tree with a local
+    ``surfaceId``/``theme`` vocabulary. The *canonical* interoperable form is
+    :meth:`to_agentsurface_v01`, which emits the shared
+    ``agentsurface-blueprint/0.1`` envelope and is validated against the same
+    contract the scenario adapter uses.
+    """
+
     surfaceId: str
     title: str
     theme: str = "dark-dungeon"
+    subtitle: str = ""
     components: list[UIComponent] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -71,6 +83,62 @@ class SurfaceBlueprint:
 
     def to_json(self, indent: int = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent)
+
+    def to_agentsurface_v01(self) -> dict[str, Any]:
+        """Export this blueprint as a canonical ``agentsurface-blueprint/0.1`` envelope.
+
+        The parent-pointer tree is flattened into the shared envelope: a
+        ``surface`` descriptor, a ``dataModel`` of bound values, a flat
+        ``components`` array whose links are ``children`` id lists, and the
+        declared ``intents``. Action buttons keep their declarative intent and
+        their parameters move into ``dataModel`` under namespaced keys, so a
+        host can route a fired intent without executing anything.
+
+        Raises ``ValueError`` if the result does not satisfy the contract.
+        """
+        data_model: dict[str, Any] = {}
+        intents: list[str] = []
+        exported: list[dict[str, Any]] = []
+        for component in self.components:
+            props = dict(component.props)
+            component_type = component.type
+            if component.type == UIComponentType.ACTION_BUTTON.value:
+                component_type = "Button"
+                intent = props.pop("intent", "")
+                if intent not in intents:
+                    intents.append(intent)
+                payload_keys: list[str] = []
+                for key, value in (props.pop("params", None) or {}).items():
+                    model_key = f"{component.id}.{key}"
+                    data_model[model_key] = value
+                    payload_keys.append(model_key)
+                props = {**props, "action": {"intent": intent, "payloadKeys": payload_keys}}
+            exported.append(
+                {"id": component.id, "type": component_type, "props": props}
+            )
+
+        children: dict[str, list[str]] = {}
+        for component in self.components:
+            if component.parentId is not None:
+                children.setdefault(component.parentId, []).append(component.id)
+        for entry in exported:
+            linked = children.get(entry["id"])
+            if linked:
+                entry["children"] = linked
+
+        payload = {
+            "surface": {
+                "id": self.surfaceId,
+                "title": self.title,
+                "subtitle": self.subtitle,
+                "width": "wide",
+            },
+            "dataModel": data_model,
+            "components": exported,
+            "intents": intents,
+        }
+        validate_agentsurface_v01(payload)
+        return payload
 
 
 @dataclass

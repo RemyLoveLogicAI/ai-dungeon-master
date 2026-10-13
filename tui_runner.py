@@ -145,6 +145,8 @@ def run_tui_encounter(interactive: bool = False, max_rounds: int = 6):
         elif enemy_decision.action == CombatActionType.DODGE:
             combat_log.append(enemy_decision.rationale)
         elif enemy_decision.action in (CombatActionType.MELEE, CombatActionType.RANGED, CombatActionType.SPELL):
+            # Committing the turn to the enemy spends any slot it decided to use.
+            enemy.commit_decision(enemy_decision)
             enemy_res = resolve_attack(
                 attacker=enemy.name,
                 target=hero_name,

@@ -27,11 +27,13 @@ compatibility for these names in this repository yet.
 
 Before implementing these, define versioned input/output schemas, encounter
 identity and ownership, idempotency and retry semantics, error handling,
-request-size/time limits, and a replay-safe random source. A seedable or
-injectable dice interface is a prerequisite for reproducible simulation; the
-existing engine currently uses Python's global random source. MCP tool names
-should be confirmed with the consuming projects and must not be treated as
-committed cross-repo APIs based only on this proposal.
+request-size/time limits, and a replay-safe random source. Injectable dice
+sources now exist (`d20_rules.DiceSource`), so a caller can opt into
+reproducible simulation; the default still delegates to the module-level
+`random` for backward compatibility, while audio synthesis draws from its own
+private generator so it cannot perturb a simulated roll. MCP tool names should
+be confirmed with the consuming projects and must not be treated as committed
+cross-repo APIs based only on this proposal.
 
 Adapter contract identifiers are exported as
 `MCP_GAMES_ADAPTER_VERSION` (`mcp-games-game-definition/1`) and
@@ -68,8 +70,24 @@ The blueprint follows the
 flat whitelisted components, a single root with child-id references, a
 `choice_id` data-model binding, and an explicit `choose` intent. The selected
 choice ID is a payload value; a future host adapter is responsible for calling
-the game session transition. The AgentSurface validator/renderer is not vendored
-or run here.
+the game session transition.
+
+The combat surface in `genui.py` exports the *same* envelope, so a consumer
+handles one shape rather than two:
+
+```python
+from genui import GenUIBlueprintFactory
+
+surface = GenUIBlueprintFactory.create_encounter_surface(...)
+blueprint = surface.to_agentsurface_v01()
+```
+
+`game_foundation.validate_agentsurface_v01` is the single definition of that
+contract and fails closed on any violation. Both `to_agentsurface_v01` and
+`SurfaceBlueprint.to_agentsurface_v01` validate their own output with it, so a
+malformed blueprint is refused here rather than at the consumer. The
+AgentSurface renderer itself is not vendored or run here; only the shape is
+enforced.
 
 ## Compatibility policy
 

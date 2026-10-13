@@ -18,9 +18,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
-            "async": true,
-            "_agentsroomHook": true
+            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/team-reminder.py\"",
+            "_agentsroomTeamHook": true
           }
         ]
       },
@@ -28,8 +27,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/team-reminder.py\"",
-            "_agentsroomTeamHook": true
+            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
+            "async": true,
+            "_agentsroomHook": true
           }
         ]
       }

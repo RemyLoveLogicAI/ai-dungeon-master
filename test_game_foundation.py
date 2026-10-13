@@ -14,6 +14,7 @@ from game_foundation import (
     start_session,
     to_agentsurface_v01,
     to_mcp_games_v1,
+    validate_agentsurface_v01,
 )
 
 
@@ -170,6 +171,81 @@ def test_agentsurface_v01_export_is_flat_reachable_and_whitelisted():
             if key in component["props"]:
                 assert isinstance(component["props"][key], str)
     assert json.loads(json.dumps(blueprint)) == blueprint
+
+
+def _valid_envelope():
+    return to_agentsurface_v01(STARTER_SCENARIO)
+
+
+def _button(envelope):
+    return next(c for c in envelope["components"] if c["type"] == "Button")
+
+
+def test_validator_accepts_the_declared_contract():
+    # The adapter validates its own output, so an accepted envelope is the
+    # contract's definition of well-formed.
+    validate_agentsurface_v01(_valid_envelope())
+
+
+def test_validator_rejects_wrong_types_as_type_errors():
+    with pytest.raises(TypeError):
+        validate_agentsurface_v01([])
+
+    envelope = _valid_envelope()
+    envelope["surface"]["id"] = 5
+    with pytest.raises(TypeError):
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_unknown_top_level_keys():
+    envelope = _valid_envelope()
+    envelope["extra"] = {}
+    with pytest.raises(ValueError):
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_an_undeclared_button_intent():
+    envelope = _valid_envelope()
+    _button(envelope)["props"]["action"]["intent"] = "smuggle"
+    with pytest.raises(ValueError):
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_a_payload_key_absent_from_the_data_model():
+    envelope = _valid_envelope()
+    _button(envelope)["props"]["action"]["payloadKeys"] = ["choice_id", "unbound"]
+    with pytest.raises(ValueError):
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_a_binding_to_an_unbound_key():
+    envelope = _valid_envelope()
+    select = next(c for c in envelope["components"] if "bind" in c["props"])
+    select["props"]["bind"] = "ghost"
+    with pytest.raises(ValueError):
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_unreachable_and_duplicate_components():
+    unreachable = _valid_envelope()
+    unreachable["components"].append(
+        {"id": "orphan", "type": "Text", "props": {"text": "x"}}
+    )
+    with pytest.raises(ValueError):
+        validate_agentsurface_v01(unreachable)
+
+    duplicate = _valid_envelope()
+    duplicate["components"].append(dict(duplicate["components"][0]))
+    with pytest.raises(ValueError):
+        validate_agentsurface_v01(duplicate)
+
+
+def test_validator_rejects_a_cycle_between_components():
+    envelope = _valid_envelope()
+    by_id = {component["id"]: component for component in envelope["components"]}
+    by_id["scene-narrative"]["children"] = ["root"]
+    with pytest.raises(ValueError):
+        validate_agentsurface_v01(envelope)
 
 
 def test_export_keeps_markup_like_content_as_plain_json_strings():

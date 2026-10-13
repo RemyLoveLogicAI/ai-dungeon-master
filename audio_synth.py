@@ -6,6 +6,12 @@ import wave
 
 SAMPLE_RATE = 44100
 
+# Audio noise must not draw from the global Mersenne Twister. Combat reads that
+# same shared stream, so any sample consumed here would shift every later combat
+# roll and make a seeded encounter irreproducible. This generator is private to
+# audio, so synthesising SFX can no longer perturb the simulation.
+_RNG = random.Random()
+
 
 def _write_wav(filename: str, samples: list):
     with wave.open(filename, 'w') as wav_file:
@@ -36,7 +42,7 @@ def synthesize_dice_roll(output_path: str, duration: float = 0.45):
             if idx < total_samples:
                 t = i / SAMPLE_RATE
                 env = math.exp(-t * 220.0)
-                noise = (random.random() * 2.0 - 1.0) * env * 0.6
+                noise = (_RNG.random() * 2.0 - 1.0) * env * 0.6
                 samples[idx] += noise
 
     _write_wav(output_path, samples)
@@ -52,7 +58,7 @@ def synthesize_sword_clash(output_path: str, duration: float = 0.5):
         # Metallic resonance frequencies (harmonic overtones)
         ring1 = math.sin(2.0 * math.pi * 2350.0 * t)
         ring2 = math.sin(2.0 * math.pi * 3820.0 * t)
-        noise = (random.random() * 2.0 - 1.0) * math.exp(-t * 40.0)
+        noise = (_RNG.random() * 2.0 - 1.0) * math.exp(-t * 40.0)
 
         samples[i] = (noise * 0.4 + (ring1 + ring2) * 0.3) * env
 
@@ -68,7 +74,7 @@ def synthesize_fireball_impact(output_path: str, duration: float = 0.75):
         env = math.exp(-t * 3.5)
         # Low frequency explosion + hiss
         rumble = math.sin(2.0 * math.pi * (70.0 - 30.0 * t) * t)
-        hiss = (random.random() * 2.0 - 1.0) * math.exp(-t * 4.0)
+        hiss = (_RNG.random() * 2.0 - 1.0) * math.exp(-t * 4.0)
 
         samples[i] = (rumble * 0.65 + hiss * 0.3) * env
 
@@ -124,7 +130,7 @@ def synthesize_ambient_drone(
         tension_osc = math.sin(2.0 * math.pi * tension_freq * t) * (0.35 * tension)
 
         # Subtle filtered rumble noise
-        noise = (random.random() * 2.0 - 1.0) * 0.04
+        noise = (_RNG.random() * 2.0 - 1.0) * 0.04
 
         val = (osc1 * 0.4 + osc2 + osc3 + tension_osc + noise) * env * 0.6
         samples[i] = val
@@ -147,7 +153,7 @@ def synthesize_cavern_ambience(output_path: str, duration: float = 2.0):
     drip_times = [0.35, 0.85, 1.30, 1.75]
     for drip_t in drip_times:
         drip_idx = int(drip_t * SAMPLE_RATE)
-        drip_freq = 1400.0 + random.random() * 400.0
+        drip_freq = 1400.0 + _RNG.random() * 400.0
         drip_len = int(0.06 * SAMPLE_RATE)
         for j in range(drip_len):
             idx = drip_idx + j
