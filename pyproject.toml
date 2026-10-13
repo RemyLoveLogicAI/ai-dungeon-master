@@ -8,7 +8,26 @@ version = "0.1.0"
 description = "Self-contained D20 tactical combat engine with a stance-based encounter AI and procedural audio, in pure stdlib Python."
 readme = "README.md"
 requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["d20", "dungeons-and-dragons", "rules-engine", "procedural-audio", "simulation"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Games/Entertainment :: Role-Playing",
+  "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis",
+]
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/RemyLoveLogicAI/ai-dungeon-master"
+Issues = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/issues"
 
 [project.scripts]
 dungeon-master = "combat_runner:run_simulated_encounter"

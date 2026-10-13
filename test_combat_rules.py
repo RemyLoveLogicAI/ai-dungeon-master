@@ -149,6 +149,40 @@ class TestCombatRunner(unittest.TestCase):
                 sfx.assert_called_once()
                 self.assertIn("ENCOUNTER CONCLUDED", out.getvalue())
 
+    def test_every_run_reports_exactly_one_terminal_outcome(self):
+        """Regression: a defeated player used to exit with no outcome line.
+
+        Before the fix, 589 of 3000 seeded runs ended with the player dead and
+        printed neither VICTORY nor DEFEAT, so a loss was indistinguishable from
+        any other ending. Each run must now announce exactly one outcome, and all
+        three endings must stay reachable.
+        """
+        fake_paths = {
+            name: f"/nonexistent/{name}.wav"
+            for name in ("dice_roll", "sword_clash", "fireball_impact", "crit_fanfare")
+        }
+        outcomes = {
+            "victory": "VICTORY!",
+            "defeat": "DEFEAT!",
+            "fled": "flees into the shadows",
+        }
+        seen = set()
+        for seed in range(300):
+            with self.subTest(seed=seed):
+                random.seed(seed)
+                out = io.StringIO()
+                with mock.patch(
+                    "combat_runner.generate_all_sfx", return_value=fake_paths
+                ), contextlib.redirect_stdout(out):
+                    combat_runner.run_simulated_encounter()
+                text = out.getvalue()
+                reported = [name for name, needle in outcomes.items() if needle in text]
+                self.assertEqual(
+                    len(reported), 1, f"seed {seed} reported {reported or 'no outcome'}"
+                )
+                seen.add(reported[0])
+        self.assertEqual(seen, set(outcomes), "not every ending was reachable")
+
 
 if __name__ == "__main__":
     unittest.main()

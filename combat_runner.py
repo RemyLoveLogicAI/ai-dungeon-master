@@ -1,6 +1,4 @@
-import os
-
-from audio_synth import generate_all_sfx
+from audio_synth import default_audio_dir, generate_all_sfx
 from d20_rules import AdvantageMode, DamageType, resolve_attack
 from encounter_ai import CombatActionType, EncounterEnemy
 
@@ -10,8 +8,9 @@ def run_simulated_encounter():
     print("      AI DUNGEON MASTER: D20 TACTICAL COMBAT ENGINE        ")
     print("=" * 60)
 
-    # 1. Generate SFX assets
-    audio_dir = os.path.join(os.path.dirname(__file__), "audio_output")
+    # 1. Generate SFX assets into a writable cache dir. Never the package dir:
+    # an installed wheel lives in site-packages, which may be read-only.
+    audio_dir = default_audio_dir()
     sfx_paths = generate_all_sfx(audio_dir)
     print(f"[*] Procedural audio SFX initialized in {audio_dir}")
 
@@ -100,6 +99,12 @@ def run_simulated_encounter():
             distance = max(1.0, distance - 1.5)
 
         round_num += 1
+
+    # The loop ends on victory, on the enemy fleeing, or when the player falls.
+    # Victory and fleeing print as they happen; a dead player is the silent exit,
+    # so it has to be reported here or the outcome is indistinguishable.
+    if player_hp <= 0:
+        print(f"\nDEFEAT! {player_name} has fallen to {enemy.name}!")
 
     print("\n" + "=" * 60)
     print("                 ENCOUNTER CONCLUDED                      ")
