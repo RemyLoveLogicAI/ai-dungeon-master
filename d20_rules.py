@@ -1,7 +1,6 @@
 import random
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Set
 
 
 class AdvantageMode(Enum):
@@ -112,7 +111,7 @@ class AttackResolution:
     damage_dealt: int
     damage_type: DamageType
     combat_message: str
-    applied_conditions: List[Condition] = field(default_factory=list)
+    applied_conditions: list[Condition] = field(default_factory=list)
 
 
 @dataclass
@@ -124,7 +123,7 @@ class ActionEconomy:
     movement_speed: float = 30.0
     movement_remaining: float = 30.0
 
-    def reset_turn(self, speed: Optional[float] = None):
+    def reset_turn(self, speed: float | None = None):
         self.has_action = True
         self.has_bonus_action = True
         self.has_reaction = True
@@ -194,8 +193,8 @@ def roll_d20(modifier: int = 0, mode: AdvantageMode = AdvantageMode.NORMAL) -> R
 
 def compute_effective_advantage(
     base_mode: AdvantageMode,
-    attacker_conditions: Optional[Set[Condition]] = None,
-    target_conditions: Optional[Set[Condition]] = None,
+    attacker_conditions: set[Condition] | None = None,
+    target_conditions: set[Condition] | None = None,
     distance_ft: float = 5.0,
     is_melee: bool = True
 ) -> AdvantageMode:
@@ -278,7 +277,6 @@ def resolve_rest(
     if rest_type == RestType.SHORT:
         # Spend 1 Hit Die if available
         if hit_dice_available > 0 and current_hp < max_hp:
-            spent_dice = 1
             heal_amount = max(1, roll_dice(1, hit_die_sides) + con_modifier)
             new_hp = min(max_hp, current_hp + heal_amount)
             recovered = new_hp - current_hp
