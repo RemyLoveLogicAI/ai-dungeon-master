@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/RemyLoveLogicAI/ai-dungeon-master/main/schemas/combat-encounter-log-1.schema.json",
+  "title": "combat-encounter-log/1",
+  "description": "A durable, replayable combat log: a contiguous tail of resolved attack events, each paired with the result it produced. Every attack records the exact die results behind it, so a consumer can re-derive the outcome without the generator that produced it.",
+  "$comment": "Structural contract only. The readers in combat_events.py additionally enforce semantic rules that JSON Schema cannot express here: a recorded die result must be legal for the die that consumed it (event.rolls[0..1] are 1..20, later draws are 1..damageDieSides) and must include both d20 results or be empty; a record may not carry dice the attack never spent; and entries must form a contiguous tail starting at dropped+1. This schema intentionally sets additionalProperties to false, which is stricter than the readers, which tolerate unknown keys for forward compatibility.",
+  "type": "object",
+  "required": ["schema", "dropped", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": "combat-encounter-log/1",
+      "description": "Envelope schema id. A reader refuses a version newer than it knows."
+    },
+    "dropped": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Entries shed by retention. The first retained entry has sequence dropped + 1, so a trimmed log is distinguishable from a complete one."
+    },
+    "entries": {
+      "type": "array",
+      "maxItems": 100000,
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "required": ["event", "result"],
+      "additionalProperties": false,
+      "properties": {
+        "event": { "$ref": "#/$defs/event" },
+        "result": { "$ref": "#/$defs/result" }
+      }
+    },
+    "event": {
+      "type": "object",
+      "title": "combat-attack-event/1",
+      "required": ["sequence", "type", "schema", "request", "rolls"],
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Position in the encounter, starting at 1 across the untrimmed log."
+        },
+        "type": { "const": "attack_resolved" },
+        "schema": { "const": "combat-attack-event/1" },
+        "request": { "$ref": "#/$defs/request" },
+        "rolls": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "$comment": "A single draw is never a complete attack: two d20 results are always recorded together, and each further draw is a damage die. Per-die upper bounds depend on damageDieSides and are enforced by the readers, not here.",
+          "anyOf": [
+            { "maxItems": 0 },
+            { "minItems": 2 }
+          ]
+        }
+      }
+    },
+    "request": {
+      "type": "object",
+      "required": [
+        "attacker",
+        "target",
+        "attackModifier",
+        "targetAc",
+        "damageDiceCount",
+        "damageDieSides",
+        "damageModifier",
+        "damageType",
+        "advantage",
+        "cover",
+        "isIncapacitatedOrUnconscious"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "attacker": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "attackModifier": { "type": "integer" },
+        "targetAc": { "type": "integer" },
+        "damageDiceCount": { "type": "integer", "minimum": 0 },
+        "damageDieSides": { "type": "integer", "minimum": 1 },
+        "damageModifier": { "type": "integer" },
+        "damageType": {
+          "enum": [
+            "Slashing",
+            "Piercing",
+            "Bludgeoning",
+            "Fire",
+            "Cold",
+            "Lightning",
+            "Thunder",
+            "Poison",
+            "Acid",
+            "Psychic",
+            "Radiant",
+            "Necrotic",
+            "Force"
+          ]
+        },
+        "advantage": { "enum": ["Normal", "Advantage", "Disadvantage"] },
+        "cover": { "enum": ["None", "Half", "Three-Quarters", "Total"] },
+        "isIncapacitatedOrUnconscious": { "type": "boolean" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "title": "combat-attack-result/1",
+      "required": [
+        "schema",
+        "attacker",
+        "target",
+        "isHit",
+        "isCritical",
+        "damageDealt",
+        "targetAc",
+        "d20Roll",
+        "total",
+        "damageType",
+        "message"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "combat-attack-result/1" },
+        "attacker": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "isHit": { "type": "boolean" },
+        "isCritical": { "type": "boolean" },
+        "damageDealt": { "type": "integer", "minimum": 0 },
+        "targetAc": { "type": "integer" },
+        "d20Roll": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20,
+          "$comment": "0 is the recorded roll for an attack that cannot be resolved at all, such as one against total cover."
+        },
+        "total": { "type": "integer" },
+        "damageType": {
+          "enum": [
+            "Slashing",
+            "Piercing",
+            "Bludgeoning",
+            "Fire",
+            "Cold",
+            "Lightning",
+            "Thunder",
+            "Poison",
+            "Acid",
+            "Psychic",
+            "Radiant",
+            "Necrotic",
+            "Force"
+          ]
+        },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

@@ -8,6 +8,9 @@ cannot:
 * **Validation.** Loads are strict and fail closed on unknown shapes, unknown
   enum values, and die results illegal for the die that consumed them. A wrong
   type raises ``TypeError``; a wrong value raises ``ValueError``.
+  ``validate_schema=True`` additionally checks the payload against the published
+  JSON Schema (``combat_schema``), which is a stricter structural contract
+  external consumers can apply without this package.
 * **Migration.** An older envelope is upgraded one version at a time through a
   supplied migration table, and a reader refuses a version newer than it knows
   rather than guessing at it.
@@ -38,6 +41,7 @@ from combat_events import (
     require_int,
     require_mapping,
 )
+from combat_schema import validate_payload
 from d20_rules import AttackRequest, AttackResolution, DiceSource
 
 LOG_SCHEMA_PREFIX = "combat-encounter-log/"
@@ -178,9 +182,20 @@ class CombatLog:
         cls,
         payload: Any,
         migrations: Mapping[str, MigrationFn] | None = None,
+        *,
+        validate_schema: bool = False,
     ) -> CombatLog:
-        """Migrate and validate an untrusted envelope payload."""
+        """Migrate and validate an untrusted envelope payload.
+
+        Pass ``validate_schema=True`` to also check the migrated payload against
+        the published JSON Schema. The check runs on the migrated envelope, so a
+        payload written by an older producer is validated as the version it is
+        upgraded to. It needs the optional ``jsonschema`` dependency and raises
+        ``combat_schema.SchemaUnavailableError`` when that is missing.
+        """
         data = migrate_log(payload, migrations=migrations)
+        if validate_schema:
+            validate_payload(data)
         schema = data.get("schema")
         if schema != LOG_SCHEMA_VERSION:
             raise ValueError(
@@ -209,6 +224,8 @@ class CombatLog:
         cls,
         text: str,
         migrations: Mapping[str, MigrationFn] | None = None,
+        *,
+        validate_schema: bool = False,
     ) -> CombatLog:
         """Parse, migrate, and validate a serialized envelope."""
         if not isinstance(text, str):
@@ -217,7 +234,9 @@ class CombatLog:
             payload = json.loads(text)
         except json.JSONDecodeError as exc:
             raise ValueError(f"log text is not valid JSON: {exc.msg}") from exc
-        return cls.from_dict(payload, migrations=migrations)
+        return cls.from_dict(
+            payload, migrations=migrations, validate_schema=validate_schema
+        )
 
 
 def trim_log(log: CombatLog, max_entries: int) -> CombatLog:
@@ -275,10 +294,20 @@ def save_log(log: CombatLog, path: str | os.PathLike[str]) -> str:
 def load_log(
     path: str | os.PathLike[str],
     migrations: Mapping[str, MigrationFn] | None = None,
+    *,
+    validate_schema: bool = False,
 ) -> CombatLog:
-    """Read and validate a saved envelope, refusing an oversized file."""
+    """Read and validate a saved envelope, refusing an oversized file.
+
+    This is the boundary that reads a file the process did not produce, so it is
+    the one worth passing ``validate_schema=True`` to.
+    """
     source = Path(path)
     size = source.stat().st_size
     if size > MAX_LOG_BYTES:
         raise ValueError(f"log file is {size} bytes, above the {MAX_LOG_BYTES} byte limit")
-    return CombatLog.loads(source.read_text(encoding="utf-8"), migrations=migrations)
+    return CombatLog.loads(
+        source.read_text(encoding="utf-8"),
+        migrations=migrations,
+        validate_schema=validate_schema,
+    )

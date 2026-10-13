@@ -9,12 +9,15 @@ from encounter_ai import CombatActionType, EncounterEnemy
 def run_simulated_encounter(
     dice: DiceSource | None = None,
     log_path: str | os.PathLike[str] | None = None,
+    validate_schema: bool = False,
 ):
     """Run the demonstration encounter.
 
     Pass ``dice`` to make the run reproducible; each attack is logged as a
     replayable event/result pair and verified at the end. Pass ``log_path`` to
-    also write the encounter log there and re-verify it after a reload.
+    also write the encounter log there and re-verify it after a reload. Pass
+    ``validate_schema`` to check that reload against the published JSON Schema as
+    well as the in-repo readers.
     """
     print("=" * 60)
     print("      AI DUNGEON MASTER: D20 TACTICAL COMBAT ENGINE        ")
@@ -141,9 +144,13 @@ def run_simulated_encounter(
     # boundary, and prove the reloaded log still replays to the same results.
     if log_path is not None:
         saved = save_log(log, log_path)
-        restored = load_log(saved)
+        restored = load_log(saved, validate_schema=validate_schema)
         status = "OK" if verify_log(restored) else "MISMATCH"
-        print(f"[Log] {len(restored)} entries written to {saved} and verified on reload: {status}")
+        scope = "schema + readers" if validate_schema else "readers"
+        print(
+            f"[Log] {len(restored)} entries written to {saved} and verified on reload "
+            f"({scope}): {status}"
+        )
 
 if __name__ == "__main__":
     run_simulated_encounter()

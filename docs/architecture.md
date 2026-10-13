@@ -107,12 +107,46 @@ again. Verifying a *reloaded* log is the real test: the resolution is a pure
 function of the request and the recorded rolls, and the stored result must match
 what a fresh replay produces, so tampering and corruption are both detectable.
 
+`tui_runner.py` carries the same envelope into an interactive session. Every
+attack it resolves is committed with `record_entry`, and the log is rewritten at
+the end of each round, so a run that stops - a crash, a closed terminal - is
+resumable from the last completed round. `--resume` reads the file back through
+the strict boundary, refuses a log that does not replay from its own recorded
+dice, refuses a log from a different encounter or one that already ended, and
+rebuilds the state the log describes: hit points, distance, the next round, and
+the enemy's remaining spell slots. `read_resumed_state` derives all of it from
+the recorded results alone, and the append path keeps sequence numbers
+contiguous across a resume, including one that follows a trimmed log. What the
+envelope cannot describe is listed in `RESUME_NOTES` and printed on resume - the
+hero's conditions and action economy reset each round and are not stored, and
+enemy narrative lines are not part of the record - so the gap is visible rather
+than inferred. Slot recovery relies on the enemy's only FIRE attack being its
+only spell; a guard test asserts that uniqueness against the AI's decision table,
+so a future decision that broke the rule fails a test instead of quietly handing
+a resumed enemy slots it had already spent.
+
 This envelope is a **format and contract, not a persistence service**. Nothing
 here schedules, replicates, deletes, or concurrently coordinates stored data;
-retention is an explicit call, not a background policy. Campaign and session
-persistence still belong to MCP Games. The payload is validated by these
-readers rather than by a published JSON Schema a consumer validates against, and
-seeding every stochastic path is still not enforced by a contract.
+retention is an explicit call, not a background policy, and a resume is a read of
+a local file. Campaign and session persistence still belong to MCP Games.
+Seeding every stochastic path is still not enforced by a contract.
+
+The envelope also ships as a **published JSON Schema**
+(`schemas/combat-encounter-log-1.schema.json`), so a consumer can validate a log
+without importing this package. `combat_schema.validate_payload` applies that
+same artifact at the Python boundary, and `load_log(..., validate_schema=True)`
+opts into it; the demonstration and TUI runners thread the same flag through. The
+two layers divide the contract deliberately, and `test_combat_schema.py` tests
+the division rather than assuming it. The schema owns structure, types, ranges,
+enum membership, and unknown properties; the readers own what a schema cannot
+express here, such as whether a recorded die result is legal for the die that
+consumed it, and both are checked against the logs the engine actually produces.
+The schema is stricter in exactly one way - it rejects unknown properties, which
+the readers tolerate so a producer that adds a field cannot break an older
+reader - and that one divergence is asserted by a test so it cannot drift into an
+accident. Validation is opt-in and needs the optional `jsonschema` dependency;
+`validate_payload` raises `SchemaUnavailableError` when it is absent rather than
+reporting a pass it did not perform.
 
 Audio is outside the simulation's stream. `audio_synth` draws its noise from a
 private `random.Random()` rather than the shared `random` module, so synthesising
@@ -158,7 +192,8 @@ authoritative in MCP Games, and UI rendering ephemeral in AgentSurface; see
   combat log has a durable, versioned format with migration and retention, but
   writing one is an explicit call to `save_log`; there is no storage backend,
   scheduler, replication, or concurrency story, and campaign state remains with
-  MCP Games.
+  MCP Games. A resumed encounter reads one local file on request and never scans
+  a directory, follows a path from the log, or writes anywhere else.
 - **Untrusted content stays data.** Strings remain plain text in both exports.
   AgentSurface's renderer contract requires text rendering with `textContent`;
   never interpolate scenario strings into generated HTML or executable code.
@@ -167,7 +202,9 @@ authoritative in MCP Games, and UI rendering ephemeral in AgentSurface; see
 - **Validate at boundaries.** Re-validate exported payloads with the consuming
   project's own validator before shipping them. Local tests check required
   shapes and reachability but do not replace their TypeScript/Zod or
-  AgentSurface validators.
+  AgentSurface validators. The combat log is the one payload with a published
+  schema this repository can apply itself, and it is still the consuming
+  project's validator that decides whether a log is acceptable there.
 
 ## Legal/content posture
 

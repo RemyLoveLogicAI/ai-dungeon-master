@@ -11,6 +11,10 @@ starter scenario and explicit export adapters for two separate projects:
 - **`combat_log.py`** — the versioned `combat-encounter-log/1` envelope: strict
   validation at the boundary, one-version-at-a-time migration, bounded retention,
   and size-guarded save/load.
+- **`combat_schema.py`** — validation against
+  `schemas/combat-encounter-log-1.schema.json`, a published JSON Schema any
+  consumer can apply without this package. Needs the optional `jsonschema`
+  extra, and fails loudly rather than skipping a requested check without it.
 - **`encounter_ai.py`** — stance-based enemy combat AI whose turn choice is a
   pure query: a decision reports its slot cost and the caller commits it.
 - **`audio_synth.py`** — procedural sound effects written directly to 16-bit WAV,
@@ -25,7 +29,8 @@ starter scenario and explicit export adapters for two separate projects:
   renderer (tactical grid, health meters, action-economy badges, intent buttons).
   Both it and the scenario adapter export the same validated v0.1 envelope.
 - **`tui_runner.py`** — a runnable encounter that draws the generative terminal
-  surface round by round and triggers procedural audio synthesis.
+  surface round by round, triggers procedural audio synthesis, commits every
+  attack to a durable log, and can resume a saved encounter.
 
 The adapters produce JSON-compatible contract payloads; they do **not** connect
 to remote repositories, start MCP servers, or call a model provider. A combat
@@ -90,11 +95,40 @@ print(trim_log(restored, 100).dropped)  # retention: entries dropped, if any
 Records deliberately carry only the numbers and fictional names attached to an
 attack: no prompts, player context, or executable content cross the boundary.
 
-Run the generative terminal surface (TUI):
+Validate that envelope against the published schema, with or without this
+repository's code:
+
+```bash
+# the artifact ships with the package, so a consumer can read it directly
+python -c "import combat_schema; print(combat_schema.schema_path())"
+```
+
+```python
+from combat_log import load_log
+
+# the in-repo readers always run; this adds the published schema on top
+log = load_log("encounter.json", validate_schema=True)
+```
+
+The schema check raises `combat_schema.SchemaUnavailableError` when the optional
+`jsonschema` extra (`pip install 'ai-dungeon-master[schema]'`) is absent, so a
+requested check is never reported as one that passed.
+
+Run the generative terminal surface (TUI), save the encounter, and resume it:
 
 ```bash
 python tui_runner.py
+python tui_runner.py --log encounter.json                  # a durable run
+python tui_runner.py --log encounter.json --resume         # continue it later
+python tui_runner.py --log encounter.json --resume --validate-schema
 ```
+
+The runner rewrites the envelope at the end of every round, so an interrupted
+session resumes from the last completed one, and an existing log is never
+replaced without `--resume` or `--overwrite`. A resume rebuilds hit points,
+distance, the next round, and the enemy's remaining spell slots from the
+recorded attacks. What the envelope does not carry is reported on screen rather
+than guessed; see `RESUME_NOTES` in `tui_runner.py`.
 
 Create and advance a story session from Python:
 
@@ -137,7 +171,9 @@ uv run ruff check .
 ```
 
 The CI workflow runs Ruff and pytest on Python 3.10–3.14. No runtime
-dependencies are added by the foundation.
+dependencies are added by the foundation: `jsonschema` is a development and
+optional-extra dependency, used only to validate logs against the published
+schema.
 
 ## CI/CD
 
