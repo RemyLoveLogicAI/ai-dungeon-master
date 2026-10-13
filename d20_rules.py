@@ -50,6 +50,10 @@ class AttackResolution:
     combat_message: str
 
 def roll_dice(count: int, sides: int) -> int:
+    if count < 0:
+        raise ValueError("count must be non-negative")
+    if sides <= 0:
+        raise ValueError("sides must be positive")
     return sum(random.randint(1, sides) for _ in range(count))
 
 def roll_d20(modifier: int = 0, mode: AdvantageMode = AdvantageMode.NORMAL) -> RollResult:
