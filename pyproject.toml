@@ -57,8 +57,10 @@ omit = ["test_*.py", ".worktrees/*"]
 
 [tool.coverage.report]
 # Kept here rather than in the workflow so the gate applies to any
-# `pytest --cov` run, including a local one. The threshold is set just below the
-# measured total rather than at an aspirational round number.
-fail_under = 85
+# `pytest --cov` run, including a local one. The threshold sits a little under
+# the measured total rather than at an aspirational round number: enough
+# headroom that a new helper can land before its test without reddening CI, and
+# tight enough that a real coverage regression still fails.
+fail_under = 92
 show_missing = true
 skip_covered = true
