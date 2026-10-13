@@ -135,18 +135,21 @@ The envelope also ships as a **published JSON Schema**
 (`schemas/combat-encounter-log-1.schema.json`), so a consumer can validate a log
 without importing this package. `combat_schema.validate_payload` applies that
 same artifact at the Python boundary, and `load_log(..., validate_schema=True)`
-opts into it; the demonstration and TUI runners thread the same flag through. The
-two layers divide the contract deliberately, and `test_combat_schema.py` tests
-the division rather than assuming it. The schema owns structure, types, ranges,
-enum membership, and unknown properties; the readers own what a schema cannot
+opts into it; the demonstration runner takes the same `validate_schema` argument
+and the TUI exposes it as `--validate-schema`. The two layers divide the contract
+deliberately, and `test_combat_schema.py` tests the division rather than
+assuming it. The schema owns structure, types, ranges, enum membership, and
+unknown properties; the readers own what a schema cannot
 express here, such as whether a recorded die result is legal for the die that
 consumed it, and both are checked against the logs the engine actually produces.
 The schema is stricter in exactly one way - it rejects unknown properties, which
 the readers tolerate so a producer that adds a field cannot break an older
 reader - and that one divergence is asserted by a test so it cannot drift into an
-accident. Validation is opt-in and needs the optional `jsonschema` dependency;
-`validate_payload` raises `SchemaUnavailableError` when it is absent rather than
-reporting a pass it did not perform.
+accident. Validation is opt-in and needs the optional `jsonschema` dependency,
+the `schema` extra (`pip install 'ai-dungeon-master[schema]'`); `validate_payload`
+raises `SchemaUnavailableError` when it is absent rather than reporting a pass it
+did not perform, and the runners call `require_validator` before they start, so a
+run that asked for the check refuses up front instead of part-way through.
 
 Audio is outside the simulation's stream. `audio_synth` draws its noise from a
 private `random.Random()` rather than the shared `random` module, so synthesising

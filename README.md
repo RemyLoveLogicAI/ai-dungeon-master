@@ -112,7 +112,9 @@ log = load_log("encounter.json", validate_schema=True)
 
 The schema check raises `combat_schema.SchemaUnavailableError` when the optional
 `jsonschema` extra (`pip install 'ai-dungeon-master[schema]'`) is absent, so a
-requested check is never reported as one that passed.
+requested check is never reported as one that passed. The runners ask for a
+validator before they start, so `--validate-schema` refuses with exit status 2
+without printing a round or writing the log.
 
 Run the generative terminal surface (TUI), save the encounter, and resume it:
 
@@ -170,16 +172,21 @@ uv run pytest -v
 uv run ruff check .
 ```
 
-The CI workflow runs Ruff and pytest on Python 3.10–3.14. No runtime
-dependencies are added by the foundation: `jsonschema` is a development and
-optional-extra dependency, used only to validate logs against the published
-schema.
+The CI workflow runs Ruff and pytest on Python 3.10–3.14 with `--cov`, so the
+`fail_under` gate in `pyproject.toml` applies to a local `uv run pytest --cov`
+too. No runtime dependencies are added by the foundation: `jsonschema` is a
+development and optional-extra dependency, used only to validate logs against
+the published schema.
 
 ## CI/CD
 
-- **CI** ([ci.yml](.github/workflows/ci.yml)): Ruff lint + pytest across the
-  supported Python versions.
+- **CI** ([ci.yml](.github/workflows/ci.yml)): the lockfile is checked against
+  `pyproject.toml`, Ruff lints, pytest runs under the coverage gate on every
+  supported Python version, and a build job installs the wheel into a throwaway
+  venv and runs both entry points.
 - **Release** ([release.yml](.github/workflows/release.yml)): a version tag
-  builds and publishes the Python package.
+  re-runs the tests, builds the package, smoke-tests the wheel the same way -
+  both entry points, the shipped licence metadata, and the published schema
+  resolving from the installed package - and only then publishes it.
 
 [![CI](https://github.com/RemyLoveLogicAI/ai-dungeon-master/actions/workflows/ci.yml/badge.svg)](https://github.com/RemyLoveLogicAI/ai-dungeon-master/actions/workflows/ci.yml)
