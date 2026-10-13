@@ -31,12 +31,13 @@ Issues = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/issues"
 
 [project.scripts]
 dungeon-master = "combat_runner:run_simulated_encounter"
+dungeon-master-tui = "tui_runner:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "ruff>=0.14"]
 
 [tool.hatch.build.targets.wheel]
-only-include = ["combat_runner.py", "d20_rules.py", "encounter_ai.py", "audio_synth.py", "game_foundation.py"]
+only-include = ["combat_runner.py", "d20_rules.py", "encounter_ai.py", "audio_synth.py", "game_foundation.py", "genui.py", "tui_runner.py"]
 sources = ["."]
 
 [tool.ruff]

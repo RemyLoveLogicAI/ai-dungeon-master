@@ -11,6 +11,10 @@ starter scenario and explicit export adapters for two separate projects:
 - **`game_foundation.py`** — domain-neutral scene/choice scenario model, an
   immutable in-memory session with an append-only choice-event log, and the
   `mcp-games-game-definition/1` / `agentsurface-blueprint/0.1` adapters.
+- **`genui.py`** — declarative `SurfaceBlueprint` factory plus an ANSI terminal
+  renderer (tactical grid, health meters, action-economy badges, intent buttons).
+- **`tui_runner.py`** — a runnable encounter that draws the generative terminal
+  surface round by round and triggers procedural audio synthesis.
 
 The adapters produce JSON-compatible contract payloads; they do **not** connect
 to remote repositories, start MCP servers, call a model provider, or persist
@@ -24,6 +28,12 @@ Run the combat demo:
 
 ```bash
 python combat_runner.py
+```
+
+Run the generative terminal surface (TUI):
+
+```bash
+python tui_runner.py
 ```
 
 Create and advance a story session from Python:
@@ -51,9 +61,12 @@ surface_blueprint = to_agentsurface_v01(STARTER_SCENARIO)
 ```
 
 The D&D-facing examples are original, system-neutral fantasy content, not
-reproductions of proprietary rulebooks. The current combat implementation is
-not a complete D&D 5e ruleset. See the SRD licensing boundary and provenance
-source in [Architecture](docs/architecture.md).
+reproductions of proprietary rulebooks. The `genui.py`/`tui_runner.py` terminal
+surface is a local, disposable client, not the production renderer: the
+ephemeral UI blueprint and its browser renderer remain owned by the separate
+`agentsurface` project. The current combat implementation is not a complete
+D&D 5e ruleset. See the SRD licensing boundary and provenance source in
+[Architecture](docs/architecture.md).
 
 ## Development
 

@@ -57,11 +57,21 @@ campaign actions or turn resolution.
 
 Present in this worktree: D20 attack-resolution functions, stance-based
 encounter AI, a command-line combat demonstration, procedural WAV sound effects,
-and the new small session/scenario/export foundation. The combat functions
-currently use Python's shared `random` module; a seeded/injected random source
-and replay-stable simulation contract are **not** implemented yet. No
-`genui.py`, TUI, full rules expansion, ambient audio engine, or MCP server/tools
-are part of this worktree.
+the small session/scenario/export foundation, and a local presentation layer
+(`genui.py` + `tui_runner.py`) that renders an ANSI terminal surface and emits a
+declarative `SurfaceBlueprint`. The combat functions currently use Python's
+shared `random` module; a seeded/injected random source and replay-stable
+simulation contract are **not** implemented yet. No full rules expansion,
+ambient audio engine, MCP server/tools, web, Tauri, or Android artifact is part
+of this worktree.
+
+The `genui.py` blueprint and TUI renderer are **local, disposable clients**, not
+the production AgentSurface renderer. They exist to exercise the result/state
+handoff inside this repo; the ephemeral UI blueprint and its browser renderer
+remain owned upstream by `agentsurface`. The `agentsurface-blueprint/0.1`
+export in `game_foundation.py` and the `SurfaceBlueprint` in `genui.py` are two
+distinct, unreconciled shapes: neither is the authoritative cross-repo contract
+yet, and `genui.py` output has not been validated by any upstream validator.
 
 The proposed future MCP-facing tool names are `dm/init_encounter`,
 `dm/resolve_turn`, `dm/render_surface`, and `dm/synthesize_audio`. They are

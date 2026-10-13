@@ -38,6 +38,11 @@ where possible.
   renderer. UI remains ephemeral; a campaign/session source of truth does not
   move into the blueprint or simulation package.
 - Confirm the proposed `dm/render_surface` responsibility with both consumers.
+- A local ANSI terminal surface (`genui.py` + `tui_runner.py`) prototypes the
+  result→presentation handoff and the intent-button shape. It is a disposable
+  client, not the AgentSurface renderer, and its `SurfaceBlueprint` is not yet
+  reconciled with the `agentsurface-blueprint/0.1` export from
+  `game_foundation.py`.
 - Keep intent names/data minimal; add authorization and validation at the host
   before side effects. Expose accessible alternatives to audio/visual cues.
 
