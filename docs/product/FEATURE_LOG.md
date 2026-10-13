@@ -9,6 +9,7 @@ a versioned release is created.
 | --- | --- | --- | --- | --- | --- |
 | Initial D20 combat engine and procedural audio demo | Pre-PRD baseline | N/A (historical baseline) | Historical baseline; MVP not verified | 0.1.0 | [v0.1.0](https://github.com/RemyLoveLogicAI/ai-dungeon-master/releases/tag/v0.1.0) |
 | Scenario foundation and cross-repository export adapters | [PR #2](https://github.com/RemyLoveLogicAI/ai-dungeon-master/pull/2); no PRD existed before this lifecycle | [#2](https://github.com/RemyLoveLogicAI/ai-dungeon-master/pull/2) | Merged; adapter tests verified; does not satisfy 1.0 MVP gate | 0.1.0 | Not separately released |
+| PRD-to-release traceability and verified MVP release gate | [#3](https://github.com/RemyLoveLogicAI/ai-dungeon-master/issues/3) | Pending | Process and validation tests verified; not a package release | No version bump | N/A |
 
 ## Release checklist
 
