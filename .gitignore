@@ -9,3 +9,5 @@ test_audio/
 .agentsroom/handoff-transcript-*.txt
 .agentsroom/handoff-summary-*.md
 .agentsroom/fork-context-*.txt
+.agents/mcp_config.json
+.claude/memories/
