@@ -33,7 +33,7 @@ from combat_log import (
     save_log,
     verify_log,
 )
-from combat_schema import SchemaUnavailableError
+from combat_schema import SchemaUnavailableError, require_validator
 from d20_rules import (
     ActionEconomy,
     AdvantageMode,
@@ -211,6 +211,11 @@ def run_tui_encounter(
     refused rather than continued from. ``validate_schema`` checks every read
     against the published JSON Schema in addition to the in-repo readers.
     """
+    if validate_schema:
+        # A requested check that cannot run must fail before the run starts, not
+        # after a log has already been written.
+        require_validator()
+
     audio_dir = default_audio_dir()
     generate_all_sfx(audio_dir)
 

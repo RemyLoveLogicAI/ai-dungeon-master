@@ -30,6 +30,7 @@ from combat_schema import (
     SCHEMA_FILENAME,
     SchemaUnavailableError,
     SchemaValidationError,
+    require_validator,
     schema_document,
     schema_path,
     validate_payload,
@@ -384,12 +385,32 @@ class TestSchemaAndReaderDivision(unittest.TestCase):
                 with self.assertRaises(SchemaUnavailableError) as caught:
                     validate_payload(payload)
                 self.assertIn("jsonschema", str(caught.exception))
+                self.assertIn("pip install", str(caught.exception))
                 with self.assertRaises(SchemaUnavailableError):
                     CombatLog.from_dict(payload, validate_schema=True)
+                # The fail-fast hook the runners call before doing any work.
+                with self.assertRaises(SchemaUnavailableError):
+                    require_validator()
         finally:
             combat_schema._validator_for.cache_clear()
             combat_schema._compiled_validator.cache_clear()
         self.assertTrue(validator_available())
+
+    def test_the_demonstration_runner_fails_fast_without_a_validator(self):
+        import combat_runner
+
+        combat_schema._validator_for.cache_clear()
+        combat_schema._compiled_validator.cache_clear()
+        try:
+            # The guard runs before any work: no encounter, no SFX, no log.
+            with (
+                mock.patch.dict(sys.modules, {"jsonschema": None, "jsonschema.validators": None}),
+                self.assertRaises(SchemaUnavailableError),
+            ):
+                combat_runner.run_simulated_encounter(validate_schema=True)
+        finally:
+            combat_schema._validator_for.cache_clear()
+            combat_schema._compiled_validator.cache_clear()
 
     def test_a_caller_supplied_schema_is_used_instead_of_the_shipped_one(self):
         # The hook exists so a future envelope version can be validated before it

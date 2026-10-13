@@ -27,10 +27,26 @@ where possible.
   migration (unknown newer versions are refused, not guessed), bounded retention
   via `trim_log`, and size-guarded save/load. Replay, migration, retention, and
   every rejection path are covered by `test_combat_log.py`.
+- **Implemented:** validation against a published JSON Schema. The envelope
+  ships as `schemas/combat-encounter-log-1.schema.json`, a consumer can apply it
+  without importing this package, and `combat_schema.py` applies the same
+  artifact at the boundary when `validate_schema=True` is passed to `loads`,
+  `load_log`, or either runner. `test_combat_schema.py` checks the artifact
+  against the engine's own enums and limits, validates every log the engine can
+  generate, and pins which layer owns which rule. The check needs the optional
+  `jsonschema` extra and raises rather than skipping when it is absent.
+- **Implemented:** a durable, resumable encounter in `tui_runner.py`. Each round
+  is written to the envelope as it completes, `--resume` rebuilds the state from
+  the recorded attacks (refusing a log that does not replay, or one from another
+  encounter), and anything a log cannot describe is reported on screen rather
+  than guessed.
 - **Open:** the envelope is a contract, not a persistence service. There is no
-  scheduling, replication, deletion, or cross-process concurrency story, and the
-  payload is validated by this repository's own readers rather than by a
-  published JSON Schema that a consumer validates against.
+  scheduling, replication, deletion, or cross-process concurrency story; a
+  resume reads one local file on request rather than owning a session store.
+- **Open:** migration is exercised only against a test-registered older version,
+  because no second envelope version exists yet, and the schema is applied only
+  from Python - another language's consumer is expected to run its own validator
+  over the published artifact.
 - **Open:** separate authoritative campaign state in MCP Games from
   per-encounter engine state in this repository; define compact validated
   request/result schemas shared with the consumer.
@@ -55,8 +71,9 @@ where possible.
   move into the blueprint or simulation package.
 - Confirm the proposed `dm/render_surface` responsibility with both consumers.
 - A local ANSI terminal surface (`genui.py` + `tui_runner.py`) prototypes the
-  result→presentation handoff and the intent-button shape. It is a disposable
-  client, not the AgentSurface renderer, and its `SurfaceBlueprint` is not yet
+  result→presentation handoff and the intent-button shape, and now saves and
+  resumes its encounter through the durable envelope. It is a disposable client,
+  not the AgentSurface renderer, and its `SurfaceBlueprint` is not yet
   reconciled with the `agentsurface-blueprint/0.1` export from
   `game_foundation.py`.
 - Keep intent names/data minimal; add authorization and validation at the host

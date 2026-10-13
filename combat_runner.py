@@ -2,6 +2,7 @@ import os
 
 from audio_synth import default_audio_dir, generate_all_sfx
 from combat_log import CombatLog, load_log, record_entry, save_log, verify_log
+from combat_schema import require_validator
 from d20_rules import AdvantageMode, AttackRequest, DamageType, DiceSource
 from encounter_ai import CombatActionType, EncounterEnemy
 
@@ -19,6 +20,10 @@ def run_simulated_encounter(
     ``validate_schema`` to check that reload against the published JSON Schema as
     well as the in-repo readers.
     """
+    if validate_schema:
+        # Fail before the run, not after printing a replay report it cannot check.
+        require_validator()
+
     print("=" * 60)
     print("      AI DUNGEON MASTER: D20 TACTICAL COMBAT ENGINE        ")
     print("=" * 60)

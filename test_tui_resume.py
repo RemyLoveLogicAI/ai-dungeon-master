@@ -11,11 +11,13 @@ import contextlib
 import io
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
+import combat_schema
 import tui_runner
 from combat_log import CombatLog, load_log, record_entry, verify_log
 from d20_rules import (
@@ -503,6 +505,28 @@ class TestCliEntryPoint(unittest.TestCase):
         result, _, errors = run_main(["--rounds", "1", "test_tui_resume.py", "-q"])
         self.assertIsNone(result)
         self.assertIn("ignoring unrecognized argument(s)", errors)
+
+    def test_requesting_schema_validation_without_a_validator_is_a_usage_error(self):
+        # Not a traceback: the check was requested, and it cannot run, so the run
+        # stops with the install hint rather than pretending to have verified.
+        combat_schema._validator_for.cache_clear()
+        combat_schema._compiled_validator.cache_clear()
+        errors = io.StringIO()
+        try:
+            with (
+                mock.patch.dict(sys.modules, {"jsonschema": None, "jsonschema.validators": None}),
+                mock.patch.object(tui_runner, "generate_all_sfx", lambda output_dir: {}),
+                mock.patch.object(tui_runner.time, "sleep", lambda _seconds: None),
+                contextlib.redirect_stderr(errors),
+                self.assertRaises(SystemExit) as caught,
+            ):
+                tui_runner.main(["--rounds", "1", "--log", self.path, "--validate-schema"])
+        finally:
+            combat_schema._validator_for.cache_clear()
+            combat_schema._compiled_validator.cache_clear()
+        self.assertEqual(caught.exception.code, 2)
+        self.assertIn("jsonschema", errors.getvalue())
+        self.assertFalse(Path(self.path).exists())
 
     def test_a_usage_error_exits_with_a_message_instead_of_a_traceback(self):
         missing = str(Path(self._tmp.name) / "missing.json")

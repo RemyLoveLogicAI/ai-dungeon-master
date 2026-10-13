@@ -78,10 +78,20 @@ def schema_document() -> dict[str, Any]:
     return document
 
 
+def require_validator() -> None:
+    """Raise :class:`SchemaUnavailableError` unless a validator is installed.
+
+    Call this before doing work whose only verification is the schema check, so a
+    requested check that cannot run fails before anything is written rather than
+    after.
+    """
+    _validator_for()
+
+
 def validator_available() -> bool:
     """Whether a reference JSON Schema validator can be imported."""
     try:
-        _validator_for()
+        require_validator()
     except SchemaUnavailableError:
         return False
     return True
