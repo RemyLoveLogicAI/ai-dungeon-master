@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+audio_output/
+test_audio/
+*.egg-info/
