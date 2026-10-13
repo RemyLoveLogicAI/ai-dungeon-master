@@ -1,7 +1,9 @@
 import os
 import unittest
+from unittest import mock
 
-from audio_synth import generate_all_sfx
+import audio_synth
+from audio_synth import default_audio_dir, generate_all_sfx
 from d20_rules import AdvantageMode, roll_d20
 from encounter_ai import AIStance, CombatActionType, EncounterEnemy
 
@@ -34,6 +36,24 @@ class TestDungeonMaster(unittest.TestCase):
         
         dec = enemy.decide_turn_action(5.0)
         self.assertEqual(dec.action, CombatActionType.FLEE)
+
+    def test_default_audio_dir_is_outside_the_package(self):
+        """Regression: the console script used to write WAVs into site-packages.
+
+        Defaulting to os.path.dirname(__file__) put the audio directory inside the
+        installed package, so a read-only install (system Python, Nix, container)
+        failed with PermissionError on the first run.
+        """
+        package_dir = os.path.dirname(os.path.abspath(audio_synth.__file__))
+        audio_dir = os.path.abspath(default_audio_dir())
+        self.assertFalse(
+            audio_dir.startswith(package_dir),
+            f"SFX must not be written into the package dir ({audio_dir})",
+        )
+
+    def test_default_audio_dir_honours_the_env_override(self):
+        with mock.patch.dict(os.environ, {"AI_DM_AUDIO_DIR": "/tmp/ai-dm-sfx"}):
+            self.assertEqual(default_audio_dir(), "/tmp/ai-dm-sfx")
 
     def test_sfx_generation_produces_valid_wav_files(self):
         test_dir = os.path.join(os.path.dirname(__file__), "test_audio")
