@@ -31,18 +31,23 @@ class AICombatDecision:
 class EncounterEnemy:
     def __init__(self, name: str = "Shadow Gargoyle", max_hp: int = 40, ac: int = 14, spell_slots: int = 2):
         self.name = name
-        self.max_hp = max_hp
-        self.current_hp = max_hp
-        self.ac = ac
-        self.spell_slots = spell_slots
+        self.max_hp = max(0, int(max_hp))
+        self.current_hp = self.max_hp
+        self.ac = max(0, int(ac))
+        self.spell_slots = max(0, int(spell_slots))
         self.stance = AIStance.AGGRESSIVE
         self.update_stance()
 
     def apply_damage(self, amount: int):
+        amount = max(amount, 0)
         self.current_hp = max(0, self.current_hp - amount)
         self.update_stance()
 
     def update_stance(self):
+        if self.max_hp <= 0:
+            self.stance = AIStance.FLEEING
+            return
+
         hp_pct = self.current_hp / self.max_hp
         if hp_pct <= 0.20:
             self.stance = AIStance.FLEEING
@@ -54,6 +59,7 @@ class EncounterEnemy:
             self.stance = AIStance.AGGRESSIVE
 
     def decide_turn_action(self, distance_to_player: float) -> AICombatDecision:
+        distance_to_player = max(0.0, float(distance_to_player))
         self.update_stance()
 
         if self.stance == AIStance.FLEEING:

@@ -169,6 +169,10 @@ class RestRecovery:
 
 
 def roll_dice(count: int, sides: int) -> int:
+    if count < 0:
+        raise ValueError("count must be non-negative")
+    if sides <= 0:
+        raise ValueError("sides must be positive")
     return sum(random.randint(1, sides) for _ in range(count))
 
 

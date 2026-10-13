@@ -36,7 +36,7 @@ dungeon-master = "combat_runner:run_simulated_encounter"
 dev = ["pytest>=8", "ruff>=0.14"]
 
 [tool.hatch.build.targets.wheel]
-only-include = ["combat_runner.py", "d20_rules.py", "encounter_ai.py", "audio_synth.py"]
+only-include = ["combat_runner.py", "d20_rules.py", "encounter_ai.py", "audio_synth.py", "game_foundation.py"]
 sources = ["."]
 
 [tool.ruff]
