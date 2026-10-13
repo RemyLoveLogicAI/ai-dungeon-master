@@ -23,6 +23,11 @@ jobs:
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+      # The other jobs sync with --frozen, which does fail on a stale lock, but
+      # as a resolution error that never names the cause. This names it, and
+      # fails before the slow jobs start.
+      - name: Check uv.lock is in sync with pyproject.toml
+        run: uv lock --check
       # Lint with the locked ruff rather than whatever `uvx ruff` resolves to,
       # so an upstream release cannot turn an unrelated PR red.
       - name: Lint (ruff)
