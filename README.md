@@ -31,6 +31,11 @@ starter scenario and explicit export adapters for two separate projects:
 - **`tui_runner.py`** — a runnable encounter that draws the generative terminal
   surface round by round, triggers procedural audio synthesis, commits every
   attack to a durable log, and can resume a saved encounter.
+- **`web/`** — a dependency-free browser client that renders the *same* validated
+  `agentsurface-blueprint/0.1` envelope the engine exports. It holds no game
+  logic: it draws components and routes intents. `web/build_demo.py` generates
+  its data from the real modules, and `test_web_demo.py` keeps that artifact in
+  sync with the code.
 
 The adapters produce JSON-compatible contract payloads; they do **not** connect
 to remote repositories, start MCP servers, or call a model provider. A combat
@@ -41,6 +46,29 @@ foundation. See [Architecture](docs/architecture.md),
 [Integrations](docs/integrations.md), and the [roadmap](docs/roadmap.md).
 
 ## Try it
+
+### In a browser (no install)
+
+The client under `web/` renders the validated `agentsurface-blueprint/0.1`
+envelope straight from the engine — the same contract the terminal surface
+exports — and reimplements none of the rules: it draws components and routes
+intents.
+
+```bash
+git clone https://github.com/RemyLoveLogicAI/ai-dungeon-master.git
+cd ai-dungeon-master
+python web/build_demo.py             # regenerate web/demo-data.json from the engine
+python -m http.server 8765 --directory web
+# open http://127.0.0.1:8765/
+```
+
+`#scene=<id>` and `#encounter` deep-link a specific surface. The page is static
+and has no runtime dependency; `.github/workflows/pages.yml` publishes it to
+GitHub Pages on a push to `main` (select **Settings → Pages → Source: GitHub
+Actions** once). It is a disposable local client, not the production
+AgentSurface renderer — see [Architecture](docs/architecture.md).
+
+### From the command line
 
 Run the combat demo:
 

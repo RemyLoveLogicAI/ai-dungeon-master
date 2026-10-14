@@ -1,0 +1,59 @@
+name: Demo (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "test_web_demo.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let two publishes race for the same environment.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # The data generator imports only the standard-library engine; no install
+      # step and no third-party dependency is required to build the demo.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate the demo data from the engine
+        run: python web/build_demo.py
+
+      - name: Fail if the committed artifact drifted from a fresh build
+        run: |
+          if ! git diff --quiet -- web/demo-data.json; then
+            echo "web/demo-data.json is stale: run 'python web/build_demo.py' and commit the result."
+            git --no-pager diff --stat -- web/demo-data.json
+            exit 1
+          fi
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

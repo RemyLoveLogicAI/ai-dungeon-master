@@ -27,8 +27,9 @@ if _HERE not in sys.path:
 if _WEB not in sys.path:
     sys.path.insert(0, _WEB)
 
-import build_demo  # noqa: E402  (path set above)
-from game_foundation import AGENTSURFACE_ADAPTER_VERSION, validate_agentsurface_v01  # noqa: E402
+import build_demo  # imported after the path setup above
+
+from game_foundation import AGENTSURFACE_ADAPTER_VERSION, validate_agentsurface_v01
 
 DEMO_JSON = os.path.join(_WEB, "demo-data.json")
 APP_JS = os.path.join(_WEB, "app.js")
@@ -100,7 +101,7 @@ class TestRendererCoversEveryEmittedType(unittest.TestCase):
             cls.app_js = handle.read()
         # SUPPORTED_TYPES is the declared vocabulary; read it from the source so
         # the two cannot drift without this test noticing.
-        block = re.search(r"const SUPPORTED_TYPES = \[(.*?)\];", cls.app_js, re.S)
+        block = re.search(r"const SUPPORTED_TYPES = \[(.*?)\];", cls.app_js, re.DOTALL)
         assert block is not None, "app.js must declare SUPPORTED_TYPES"
         cls.supported = set(re.findall(r'"([^"]+)"', block.group(1)))
 

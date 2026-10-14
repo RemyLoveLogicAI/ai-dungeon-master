@@ -58,9 +58,12 @@ campaign actions or turn resolution.
 Present in this worktree: D20 attack-resolution functions, stance-based
 encounter AI, a command-line combat demonstration, procedural WAV sound effects,
 the small session/scenario/export foundation, and a local presentation layer
-(`genui.py` + `tui_runner.py`) that renders an ANSI terminal surface and emits a
-declarative `SurfaceBlueprint`. No full rules expansion, ambient audio engine,
-MCP server/tools, web, Tauri, or Android artifact is part of this worktree.
+(`genui.py` + `tui_runner.py`) that renders an ANSI terminal surface, and a
+static browser client (`web/`) that renders the exported envelope. Both emit the
+same declarative `SurfaceBlueprint` contract. No full rules expansion, ambient
+audio engine, MCP server/tools, Tauri, or Android artifact is part of this
+worktree: the browser client is a *renderer over the exported contract*, not a
+second implementation of the rules.
 
 ## Deterministic simulation boundary
 
@@ -162,10 +165,13 @@ computes the stance rather than storing it and reports a spell's slot cost on th
 decision instead of deducting it, so previewing a turn - or asking twice - cannot
 change the game. `commit_decision` applies that cost once a turn is really taken.
 
-The `genui.py` blueprint and TUI renderer are **local, disposable clients**, not
-the production AgentSurface renderer. They exist to exercise the result/state
-handoff inside this repo; the ephemeral UI blueprint and its browser renderer
-remain owned upstream by `agentsurface`.
+The `genui.py` blueprint, the TUI renderer, and the `web/` browser client are
+**local, disposable clients**, not the production AgentSurface renderer. They
+exist to exercise the result/state handoff inside this repo; the ephemeral UI
+blueprint and its production browser renderer remain owned upstream by
+`agentsurface`. The `web/` client is verified as a renderer specifically: it
+holds no rules, and `test_web_demo.py` asserts that every component type the
+Python producers emit is one it declares support for.
 
 Both producers now speak **one** contract.
 `game_foundation.validate_agentsurface_v01` is the single definition of

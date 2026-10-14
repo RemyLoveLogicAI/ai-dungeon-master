@@ -250,12 +250,21 @@
     toast("Intent " + (intent || "(none)") + " fired — a real host would route this.");
   }
 
+  // Deep links: #scene=<id> and #encounter. Sharing a link to a view is worth
+  // more than a scroll position, and it makes each surface reachable directly.
+  function syncHash(value) {
+    if (window.location.hash !== value) {
+      window.history.replaceState(null, "", value);
+    }
+  }
+
   function showScene(sceneId) {
     state.sceneId = sceneId;
     const scene = state.data.scenario.scenes[sceneId];
     const host = document.getElementById("stage");
     host.replaceChildren(renderBlueprint(scene.blueprint, handleIntent));
     document.getElementById("crumb").textContent = sceneId;
+    syncHash("#scene=" + sceneId);
   }
 
   function showEncounter() {
@@ -263,6 +272,7 @@
     host.replaceChildren(renderBlueprint(state.data.encounter.surface, handleIntent));
     document.getElementById("crumb").textContent =
       "encounter (seeded " + state.data.encounter.seed + ")";
+    syncHash("#encounter");
   }
 
   function setView(view) {
@@ -289,7 +299,16 @@
     document.querySelectorAll("[data-view]").forEach(function (tab) {
       tab.addEventListener("click", function () { setView(tab.dataset.view); });
     });
-    showScene(state.sceneId);
+
+    const hash = window.location.hash || "";
+    const sceneMatch = /^#scene=(.+)$/.exec(hash);
+    if (hash === "#encounter") {
+      setView("encounter");
+    } else if (sceneMatch && state.data.scenario.scenes[sceneMatch[1]]) {
+      showScene(sceneMatch[1]);
+    } else {
+      showScene(state.sceneId);
+    }
   }
 
   window.DungeonDemo = { SUPPORTED_TYPES: SUPPORTED_TYPES, renderBlueprint: renderBlueprint, handleIntent: handleIntent };

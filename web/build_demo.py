@@ -35,22 +35,22 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from combat_log import record_entry  # noqa: E402
-from d20_rules import (  # noqa: E402
+from combat_log import record_entry
+from d20_rules import (
     AdvantageMode,
     AttackRequest,
     DamageType,
     SeededDiceSource,
 )
-from encounter_ai import CombatActionType, EncounterEnemy  # noqa: E402
-from game_foundation import (  # noqa: E402
+from encounter_ai import CombatActionType, EncounterEnemy
+from game_foundation import (
     AGENTSURFACE_ADAPTER_VERSION,
     STARTER_SCENARIO,
     Scenario,
     to_agentsurface_v01,
     validate_agentsurface_v01,
 )
-from genui import GenUIBlueprintFactory  # noqa: E402
+from genui import GenUIBlueprintFactory
 
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "demo-data.json")
 
