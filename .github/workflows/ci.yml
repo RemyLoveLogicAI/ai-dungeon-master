@@ -34,6 +34,15 @@ jobs:
         run: |
           uv sync --frozen --dev
           uv run ruff check .
+      # The package ships a `py.typed` marker, which promises every consumer that
+      # the annotations are real. Without this step that promise is only a claim.
+      - name: Type-check (mypy)
+        run: uv run mypy
+      # The web client is hand-written JS with no build step, so a syntax error
+      # would otherwise surface only in a browser. Node is preinstalled on the
+      # runner, so this costs no toolchain of its own.
+      - name: Syntax-check the web client (node)
+        run: node --check web/app.js
 
   test:
     runs-on: ubuntu-latest
@@ -51,9 +60,18 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen --dev
-      # --cov applies the fail_under gate configured in pyproject.toml.
+      # --cov applies the total fail_under gate configured in pyproject.toml.
+      # The JSON report is what the per-module gate below reads.
       - name: Test (pytest) with coverage gate
-        run: uv run pytest -v --cov --cov-report=term-missing
+        run: uv run pytest -v --cov --cov-report=term-missing --cov-report=json
+      # `fail_under` guards the project total only, so a single module could
+      # collapse while the others carried the average and CI stayed green. The
+      # per-module floors in coverage_gate.py close that blind spot, and run on
+      # one pinned interpreter: coverage can shift between Python versions, and
+      # a per-module gate calibrated on one version must not be flaky on another.
+      - name: Enforce per-module coverage floors
+        if: matrix.python-version == '3.12'
+        run: uv run python coverage_gate.py
 
   build:
     runs-on: ubuntu-latest

@@ -11,6 +11,12 @@ requires-python = ">=3.10"
 license = "MIT"
 license-files = ["LICENSE"]
 keywords = ["d20", "dungeons-and-dragons", "rules-engine", "procedural-audio", "simulation"]
+# PEP 621 requires attribution. Kept as the project/organisation name that the
+# LICENSE already asserts as copyright holder, deliberately without a personal
+# address: package metadata is published publicly and permanently, so a private
+# contact is the maintainer's call to make, not a default to bake in.
+authors = [{ name = "RemyLoveLogicAI" }]
+maintainers = [{ name = "RemyLoveLogicAI" }]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -33,6 +39,9 @@ schema = ["jsonschema>=4.18"]
 
 [project.urls]
 Repository = "https://github.com/RemyLoveLogicAI/ai-dungeon-master"
+# CHANGELOG.md and docs/ are tracked, so these resolve rather than 404.
+Changelog = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/blob/main/docs/architecture.md"
 Issues = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/issues"
 
 [project.scripts]
@@ -40,7 +49,7 @@ dungeon-master = "combat_runner:run_simulated_encounter"
 dungeon-master-tui = "tui_runner:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "pytest-cov>=6", "hypothesis>=6", "jsonschema>=4.18", "ruff>=0.14"]
+dev = ["pytest>=8", "pytest-cov>=6", "hypothesis>=6", "jsonschema>=4.18", "ruff>=0.14", "mypy>=1.11"]
 
 [tool.hatch.build.targets.wheel]
 only-include = ["combat_runner.py", "combat_events.py", "combat_log.py", "combat_schema.py", "d20_rules.py", "encounter_ai.py", "audio_synth.py", "game_foundation.py", "genui.py", "tui_runner.py", "schemas/combat-encounter-log-1.schema.json", "py.typed"]
@@ -48,6 +57,32 @@ sources = ["."]
 
 [tool.ruff]
 line-length = 100
+
+[tool.mypy]
+# The package ships a `py.typed` marker, which is a promise to every consumer
+# that the inline annotations are real. A promise with no gate is a claim, so
+# the shipped modules - plus the web data exporter and the coverage gate, which
+# are part of the deliverable's tooling - are type-checked in CI.
+python_version = "3.10"
+files = [
+  "d20_rules.py",
+  "combat_events.py",
+  "combat_log.py",
+  "combat_schema.py",
+  "encounter_ai.py",
+  "audio_synth.py",
+  "game_foundation.py",
+  "genui.py",
+  "tui_runner.py",
+  "combat_runner.py",
+  "coverage_gate.py",
+  "web/build_demo.py",
+]
+# An optional third-party stub we do not control should not fail our build; our
+# own annotations are still checked in full.
+ignore_missing_imports = true
+warn_unused_ignores = true
+no_implicit_optional = true
 
 [tool.coverage.run]
 source = ["."]
@@ -61,6 +96,11 @@ omit = ["test_*.py", ".worktrees/*"]
 # the measured total rather than at an aspirational round number: enough
 # headroom that a new helper can land before its test without reddening CI, and
 # tight enough that a real coverage regression still fails.
-fail_under = 92
+#
+# This guards the TOTAL only: a single module can collapse while the other
+# modules carry the average. `coverage_gate.py` applies a floor per module on
+# top of this one, and both run in CI. Raised alongside the per-module floors
+# when the suite went from 93.4% to 98.0%, so the same two-point rule applies.
+fail_under = 96
 show_missing = true
 skip_covered = true

@@ -222,7 +222,7 @@ def run_tui_encounter(
     hero_name = HERO_NAME
     hero_max_hp = HERO_MAX_HP
     hero_hp = hero_max_hp
-    hero_conditions = []
+    hero_conditions: list[str] = []
     hero_economy = ActionEconomy(movement_speed=30.0)
 
     target = None if log_path is None else Path(log_path)

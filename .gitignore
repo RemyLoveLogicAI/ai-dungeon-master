@@ -7,6 +7,7 @@ test_audio/
 *.egg-info/
 .hypothesis/
 .coverage
+coverage.json
 htmlcov/
 .mcp.json
 .agentsroom/handoff-transcript-*.txt

@@ -6,11 +6,17 @@ from unittest import mock
 
 import combat_runner
 from d20_rules import (
+    AbilityScore,
+    ActionEconomy,
     AdvantageMode,
+    Condition,
     DamageType,
     RestType,
+    ScriptedDiceSource,
+    compute_effective_advantage,
     resolve_attack,
     resolve_rest,
+    resolve_saving_throw,
     roll_dice,
 )
 from encounter_ai import AIStance, CombatActionType, EncounterEnemy
@@ -275,6 +281,237 @@ class TestResolveRestInputValidation(unittest.TestCase):
         result = self.rest(current_hp=5, max_hp=10, hit_dice_available=1)
         self.assertEqual(result.rest_type, RestType.SHORT)
         self.assertGreaterEqual(result.hp_recovered, 0)
+
+
+class TestResolveRestLongRest(unittest.TestCase):
+    """The Long Rest branch was never executed by the suite.
+
+    Only Short Rests were covered, so the half-hit-dice floor (integer
+    division would silently give 0 for a one-die character) and the
+    exhaustion rule went unverified.
+    """
+
+    def long_rest(self, **overrides):
+        args = {
+            "character_name": "Hero",
+            "rest_type": RestType.LONG,
+            "current_hp": 3,
+            "max_hp": 20,
+            "hit_dice_available": 0,
+            "total_hit_dice": 5,
+            "hit_die_sides": 8,
+            "con_modifier": 0,
+            "current_spell_slots": 1,
+            "max_spell_slots": 4,
+            "exhaustion_level": 2,
+        }
+        args.update(overrides)
+        return resolve_rest(**args)
+
+    def test_restores_full_hp_slots_and_half_the_hit_dice(self):
+        result = self.long_rest()
+        self.assertEqual(result.rest_type, RestType.LONG)
+        self.assertEqual(result.hp_recovered, 17)  # 20 - 3
+        self.assertEqual(result.hit_dice_recovered, 2)  # 5 // 2
+        self.assertEqual(result.spell_slots_restored, 3)  # 4 - 1
+        self.assertEqual(result.exhaustion_reduced, 1)
+        self.assertEqual(result.hit_dice_spent, 0)
+
+    def test_recovers_at_least_one_hit_die(self):
+        result = self.long_rest(total_hit_dice=1)
+        self.assertEqual(result.hit_dice_recovered, 1)
+
+    def test_without_exhaustion_reduces_nothing(self):
+        result = self.long_rest(exhaustion_level=0)
+        self.assertEqual(result.exhaustion_reduced, 0)
+
+    def test_at_full_hp_and_slots_recovers_nothing(self):
+        result = self.long_rest(current_hp=20, current_spell_slots=4)
+        self.assertEqual(result.hp_recovered, 0)
+        self.assertEqual(result.spell_slots_restored, 0)
+
+
+class TestActionEconomy(unittest.TestCase):
+    """The per-turn action budget shipped with no test at all.
+
+    Each method guards a resource, so the interesting behaviour is the second
+    call: a spent resource must stay spent, and a refused move must not deduct
+    movement it never used.
+    """
+
+    def test_each_resource_can_be_spent_exactly_once(self):
+        for spend in ("use_action", "use_bonus_action", "use_reaction"):
+            with self.subTest(resource=spend):
+                economy = ActionEconomy()
+                self.assertTrue(getattr(economy, spend)(), "first use must succeed")
+                self.assertFalse(getattr(economy, spend)(), "second use must fail")
+
+    def test_reset_turn_restores_every_resource(self):
+        economy = ActionEconomy()
+        economy.use_action()
+        economy.use_bonus_action()
+        economy.use_reaction()
+        economy.move(30.0)
+        economy.reset_turn()
+        self.assertTrue(economy.has_action)
+        self.assertTrue(economy.has_bonus_action)
+        self.assertTrue(economy.has_reaction)
+        self.assertEqual(economy.movement_remaining, economy.movement_speed)
+
+    def test_reset_turn_only_overrides_speed_when_given_one(self):
+        economy = ActionEconomy(movement_speed=30.0, movement_remaining=0.0)
+        economy.reset_turn()
+        self.assertEqual(economy.movement_speed, 30.0)
+        self.assertEqual(economy.movement_remaining, 30.0)
+        economy.reset_turn(speed=15.0)
+        self.assertEqual(economy.movement_speed, 15.0)
+        self.assertEqual(economy.movement_remaining, 15.0)
+
+    def test_difficult_terrain_costs_double(self):
+        economy = ActionEconomy(movement_remaining=30.0)
+        self.assertTrue(economy.move(10.0, is_difficult_terrain=True))
+        self.assertAlmostEqual(economy.movement_remaining, 10.0)
+
+    def test_a_refused_move_consumes_no_movement(self):
+        economy = ActionEconomy(movement_remaining=5.0)
+        self.assertFalse(economy.move(10.0))
+        self.assertAlmostEqual(economy.movement_remaining, 5.0)
+
+    def test_movement_is_available_exactly_at_the_boundary(self):
+        economy = ActionEconomy(movement_remaining=30.0)
+        self.assertTrue(economy.move(30.0))
+        self.assertAlmostEqual(economy.movement_remaining, 0.0)
+
+
+class TestComputeEffectiveAdvantage(unittest.TestCase):
+    """Exported rules API that had no coverage at all.
+
+    The two rules worth pinning are the 5e cancellation rule (any advantage
+    plus any disadvantage is a straight roll, they never stack) and the prone
+    boundary, which flips on melee range.
+    """
+
+    def test_base_mode_survives_when_no_conditions_apply(self):
+        for mode in AdvantageMode:
+            with self.subTest(mode=mode):
+                self.assertEqual(compute_effective_advantage(mode), mode)
+
+    def test_advantage_and_disadvantage_cancel_to_normal(self):
+        result = compute_effective_advantage(
+            AdvantageMode.ADVANTAGE, attacker_conditions={Condition.BLINDED}
+        )
+        self.assertEqual(result, AdvantageMode.NORMAL)
+
+    def test_attacker_conditions(self):
+        for condition in (
+            Condition.BLINDED,
+            Condition.POISONED,
+            Condition.FRIGHTENED,
+            Condition.RESTRAINED,
+        ):
+            with self.subTest(condition=condition):
+                self.assertEqual(
+                    compute_effective_advantage(
+                        AdvantageMode.NORMAL, attacker_conditions={condition}
+                    ),
+                    AdvantageMode.DISADVANTAGE,
+                )
+        self.assertEqual(
+            compute_effective_advantage(
+                AdvantageMode.NORMAL, attacker_conditions={Condition.INVISIBLE}
+            ),
+            AdvantageMode.ADVANTAGE,
+        )
+
+    def test_target_conditions(self):
+        for condition in (
+            Condition.BLINDED,
+            Condition.PARALYZED,
+            Condition.PETRIFIED,
+            Condition.STUNNED,
+            Condition.UNCONSCIOUS,
+            Condition.RESTRAINED,
+        ):
+            with self.subTest(condition=condition):
+                self.assertEqual(
+                    compute_effective_advantage(
+                        AdvantageMode.NORMAL, target_conditions={condition}
+                    ),
+                    AdvantageMode.ADVANTAGE,
+                )
+        self.assertEqual(
+            compute_effective_advantage(
+                AdvantageMode.NORMAL, target_conditions={Condition.INVISIBLE}
+            ),
+            AdvantageMode.DISADVANTAGE,
+        )
+
+    def test_a_prone_target_flips_on_melee_range(self):
+        for distance, expected in (
+            (0.0, AdvantageMode.ADVANTAGE),
+            (5.0, AdvantageMode.ADVANTAGE),
+            (5.1, AdvantageMode.DISADVANTAGE),
+            (30.0, AdvantageMode.DISADVANTAGE),
+        ):
+            with self.subTest(distance_ft=distance):
+                self.assertEqual(
+                    compute_effective_advantage(
+                        AdvantageMode.NORMAL,
+                        target_conditions={Condition.PRONE},
+                        distance_ft=distance,
+                    ),
+                    expected,
+                )
+
+
+class TestResolveSavingThrow(unittest.TestCase):
+    """`resolve_saving_throw` is exported API that the suite never called."""
+
+    def test_success_and_failure_are_decided_by_the_dc(self):
+        # NORMAL mode consumes two d20s and keeps the first.
+        success = resolve_saving_throw(
+            "Hero",
+            AbilityScore.DEXTERITY,
+            modifier=5,
+            dc=20,
+            dice=ScriptedDiceSource([19, 3]),
+        )
+        failure = resolve_saving_throw(
+            "Hero",
+            AbilityScore.DEXTERITY,
+            modifier=5,
+            dc=20,
+            dice=ScriptedDiceSource([14, 3]),
+        )
+        self.assertTrue(success.is_success)
+        self.assertFalse(failure.is_success)
+        self.assertIn("SUCCESS", success.message)
+        self.assertIn("FAILURE", failure.message)
+
+    def test_meeting_the_dc_exactly_succeeds(self):
+        # 15 + 5 == 20 must pass: the comparison is ">=", not ">".
+        result = resolve_saving_throw(
+            "Hero",
+            AbilityScore.CONSTITUTION,
+            modifier=5,
+            dc=20,
+            dice=ScriptedDiceSource([15, 1]),
+        )
+        self.assertTrue(result.is_success)
+
+    def test_result_carries_the_ability_and_the_roll_arithmetic(self):
+        result = resolve_saving_throw(
+            "Hero",
+            AbilityScore.WISDOM,
+            modifier=2,
+            dc=10,
+            dice=ScriptedDiceSource([16, 4]),
+        )
+        self.assertEqual(result.ability, AbilityScore.WISDOM)
+        self.assertEqual(result.dc, 10)
+        self.assertEqual(result.roll.total, 18)
+        self.assertIn("Wisdom", result.message)
+        self.assertIn("16+2=18", result.message)
 
 
 if __name__ == "__main__":

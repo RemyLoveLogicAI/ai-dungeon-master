@@ -1,7 +1,7 @@
 import os
 
 from audio_synth import default_audio_dir, generate_all_sfx
-from combat_log import CombatLog, load_log, record_entry, save_log, verify_log
+from combat_log import CombatLog, CombatLogEntry, load_log, record_entry, save_log, verify_log
 from combat_schema import require_validator
 from d20_rules import AdvantageMode, AttackRequest, DamageType, DiceSource
 from encounter_ai import CombatActionType, EncounterEnemy
@@ -49,7 +49,7 @@ def run_simulated_encounter(
     print(f"    Enemy:  {enemy.name} (HP {enemy.current_hp}, AC {enemy.ac}, Stance: {enemy.stance.value})")
     print("-" * 60)
 
-    entries = []
+    entries: list[CombatLogEntry] = []
     round_num = 1
     while player_hp > 0 and enemy.current_hp > 0:
         print(f"\n--- ROUND {round_num} (Distance: {distance:.1f}m) ---")

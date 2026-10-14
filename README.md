@@ -198,20 +198,26 @@ D&D 5e ruleset. See the SRD licensing boundary and provenance source in
 uv sync --dev
 uv run pytest -v
 uv run ruff check .
+uv run mypy
+uv run pytest --cov --cov-report=json && uv run python coverage_gate.py
 ```
 
 The CI workflow runs Ruff and pytest on Python 3.10–3.14 with `--cov`, so the
-`fail_under` gate in `pyproject.toml` applies to a local `uv run pytest --cov`
-too. No runtime dependencies are added by the foundation: `jsonschema` is a
-development and optional-extra dependency, used only to validate logs against
-the published schema.
+total `fail_under` gate in `pyproject.toml` applies to a local
+`uv run pytest --cov` too. That gate cannot see one module collapsing while the
+others carry the average, so `coverage_gate.py` applies a floor per module on
+top of it and refuses a report older than the code it describes. No runtime
+dependencies are added by the foundation: `jsonschema` is a development and
+optional-extra dependency, used only to validate logs against the published
+schema.
 
 ## CI/CD
 
 - **CI** ([ci.yml](.github/workflows/ci.yml)): the lockfile is checked against
-  `pyproject.toml`, Ruff lints, pytest runs under the coverage gate on every
-  supported Python version, and a build job installs the wheel into a throwaway
-  venv and runs both entry points.
+  `pyproject.toml`, Ruff lints, pytest runs under the total coverage gate on
+  every supported Python version, the per-module floors are enforced on one
+  pinned interpreter, and a build job installs the wheel into a throwaway venv
+  and runs both entry points.
 - **Release** ([release.yml](.github/workflows/release.yml)): a version tag
   re-runs the tests, builds the package, smoke-tests the wheel the same way -
   both entry points, the shipped licence metadata, and the published schema

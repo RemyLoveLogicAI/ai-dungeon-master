@@ -189,7 +189,9 @@ def simulate_encounter(seed: int = ENCOUNTER_SEED) -> dict[str, Any]:
 
 def build_demo_data() -> dict[str, Any]:
     """Assemble and self-validate the whole demo payload."""
-    data = {
+    # Annotated explicitly: inferred from the literal, mypy widens the value type
+    # and the indexing below stops type-checking.
+    data: dict[str, Any] = {
         "contract": AGENTSURFACE_ADAPTER_VERSION,
         "generator": "web/build_demo.py",
         "scenario": export_scenario(STARTER_SCENARIO),
