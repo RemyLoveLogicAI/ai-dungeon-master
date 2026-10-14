@@ -59,7 +59,7 @@ jobs:
           # Keep the generated WAVs off the runner's cache directory.
           AI_DM_AUDIO_DIR: ${{ runner.temp }}/ai-dm-audio
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate-release-notes: true
           files: |
