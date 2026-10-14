@@ -295,14 +295,24 @@ def validate_agentsurface_v01(payload: Any, root: str = "root") -> None:
                 )
 
 
-def to_agentsurface_v01(scenario: Scenario) -> dict[str, Any]:
-    """Export a static AgentSurface v0.1 blueprint for the start-scene choice.
+def to_agentsurface_v01(scenario: Scenario, scene_id: str | None = None) -> dict[str, Any]:
+    """Export a static AgentSurface v0.1 blueprint for one scene's choices.
+
+    Defaults to the scenario's start scene. Pass ``scene_id`` to export any
+    other scene of the same, already-validated scenario - an unknown id is
+    refused rather than silently falling back to the start scene, so a caller
+    that mistypes a scene never renders the wrong surface and believes it.
 
     The renderer handles these strings as text; this adapter neither emits HTML
     nor accepts executable props. Choice ids are used as Select values so the
     intent payload can be routed unambiguously by a host.
     """
-    opening = scenario.scenes_by_id[scenario.start_scene]
+    scenes_by_id = scenario.scenes_by_id
+    if scene_id is None:
+        scene_id = scenario.start_scene
+    elif scene_id not in scenes_by_id:
+        raise ValueError(f"unknown scene {scene_id!r}")
+    opening = scenes_by_id[scene_id]
     choice_id = opening.choices[0].id if opening.choices else ""
     data_model = {"choice_id": choice_id}
     components: list[dict[str, Any]] = [
