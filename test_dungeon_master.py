@@ -1,5 +1,7 @@
 import os
+import tempfile
 import unittest
+import wave
 
 from audio_synth import generate_all_sfx
 from d20_rules import AdvantageMode, roll_d20
@@ -36,19 +38,19 @@ class TestDungeonMaster(unittest.TestCase):
         self.assertEqual(dec.action, CombatActionType.FLEE)
 
     def test_sfx_generation_produces_valid_wav_files(self):
-        test_dir = os.path.join(os.path.dirname(__file__), "test_audio")
-        paths = generate_all_sfx(test_dir)
-        
-        for name, p in paths.items():
-            self.assertTrue(os.path.exists(p), f"Missing {name}")
-            self.assertGreater(os.path.getsize(p), 1000, f"Empty audio {name}")
-            
-        # Clean up test files
-        for p in paths.values():
-            if os.path.exists(p):
-                os.remove(p)
-        if os.path.exists(test_dir):
-            os.rmdir(test_dir)
+        with tempfile.TemporaryDirectory() as test_dir:
+            paths = generate_all_sfx(test_dir)
+            self.assertEqual(set(paths), {
+                "dice_roll", "sword_clash", "fireball_impact", "crit_fanfare"
+            })
+            for name, p in paths.items():
+                self.assertTrue(os.path.exists(p), f"Missing {name}")
+                self.assertGreater(os.path.getsize(p), 1000, f"Empty audio {name}")
+                with wave.open(p, "rb") as wav_file:
+                    self.assertEqual(wav_file.getnchannels(), 1)
+                    self.assertEqual(wav_file.getsampwidth(), 2)
+                    self.assertEqual(wav_file.getframerate(), 44100)
+                    self.assertGreater(wav_file.getnframes(), 0)
 
 if __name__ == "__main__":
     unittest.main()

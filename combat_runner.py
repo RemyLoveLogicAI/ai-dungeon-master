@@ -5,13 +5,14 @@ from d20_rules import AdvantageMode, DamageType, resolve_attack
 from encounter_ai import CombatActionType, EncounterEnemy
 
 
-def run_simulated_encounter():
+def run_simulated_encounter(audio_dir: str | os.PathLike | None = None):
     print("=" * 60)
     print("      AI DUNGEON MASTER: D20 TACTICAL COMBAT ENGINE        ")
     print("=" * 60)
 
     # 1. Generate SFX assets
-    audio_dir = os.path.join(os.path.dirname(__file__), "audio_output")
+    if audio_dir is None:
+        audio_dir = os.path.join(os.getcwd(), "audio_output")
     sfx_paths = generate_all_sfx(audio_dir)
     print(f"[*] Procedural audio SFX initialized in {audio_dir}")
 
@@ -88,12 +89,16 @@ def run_simulated_encounter():
             )
             print(f"  {e_res.combat_message}")
             if e_res.is_hit:
-                player_hp -= e_res.damage_dealt
+                player_hp = max(0, player_hp - e_res.damage_dealt)
                 if decision.damage_type == DamageType.FIRE:
                     print(f"  [AUDIO TRIGGER: {sfx_paths['fireball_impact']}]")
                 else:
                     print(f"  [AUDIO TRIGGER: {sfx_paths['sword_clash']}]")
             print(f"  -> {player_name} HP: {max(0, player_hp)}/{player_max_hp}")
+
+        if player_hp <= 0:
+            print(f"\nDEFEAT! {player_name} has been defeated by {enemy.name}!")
+            break
 
         # Engage distance adjusts
         if distance > 1.5:

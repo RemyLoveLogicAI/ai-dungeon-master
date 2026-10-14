@@ -50,6 +50,10 @@ class AttackResolution:
     combat_message: str
 
 def roll_dice(count: int, sides: int) -> int:
+    if count < 0:
+        raise ValueError("dice count must be nonnegative")
+    if sides <= 0:
+        raise ValueError("die sides must be positive")
     return sum(random.randint(1, sides) for _ in range(count))
 
 def roll_d20(modifier: int = 0, mode: AdvantageMode = AdvantageMode.NORMAL) -> RollResult:
@@ -81,6 +85,10 @@ def resolve_attack(
     damage_type: DamageType,
     advantage: AdvantageMode = AdvantageMode.NORMAL
 ) -> AttackResolution:
+    if damage_dice_count < 0:
+        raise ValueError("damage dice count must be nonnegative")
+    if damage_die_sides <= 0:
+        raise ValueError("damage die sides must be positive")
     roll = roll_d20(attack_modifier, advantage)
     is_hit = False
     is_critical = False

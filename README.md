@@ -19,6 +19,9 @@ Or, after `uv sync`:
 uv run dungeon-master
 ```
 
+Audio is written to `audio_output/` in the current working directory. Python callers
+can choose a different location with `run_simulated_encounter(audio_dir=...)`.
+
 ## Test
 
 ```bash

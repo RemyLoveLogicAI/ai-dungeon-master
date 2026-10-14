@@ -101,7 +101,7 @@ def generate_all_sfx(output_dir: str):
     return paths
 
 if __name__ == "__main__":
-    out = os.path.join(os.path.dirname(__file__), "audio_output")
+    out = os.path.join(os.getcwd(), "audio_output")
     res = generate_all_sfx(out)
     print("Synthesized audio SFX:")
     for name, p in res.items():
