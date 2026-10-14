@@ -389,6 +389,18 @@ def resolve_rest(
     exhaustion_level: int = 0,
     dice: DiceSource | None = None
 ) -> RestRecovery:
+    # Fail closed at the boundary, the same way the combat-log readers do: a
+    # wrong type raises TypeError, a wrong value raises ValueError. An
+    # unvalidated max_hp silently produced a negative heal (current_hp above
+    # max_hp) or a divide-by-nothing recovery summary, so the caller never
+    # learned the rest was computed from impossible state.
+    for field_name, value in (("max_hp", max_hp), ("current_hp", current_hp)):
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError(f"{field_name} must be an integer")
+    if max_hp <= 0:
+        raise ValueError("max_hp must be positive")
+    if current_hp < 0 or current_hp > max_hp:
+        raise ValueError("current_hp must be between 0 and max_hp")
     if rest_type == RestType.SHORT:
         # Spend 1 Hit Die if available
         if hit_dice_available > 0 and current_hp < max_hp:

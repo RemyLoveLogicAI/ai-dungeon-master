@@ -5,7 +5,14 @@ import unittest
 from unittest import mock
 
 import combat_runner
-from d20_rules import AdvantageMode, DamageType, resolve_attack
+from d20_rules import (
+    AdvantageMode,
+    DamageType,
+    RestType,
+    resolve_attack,
+    resolve_rest,
+    roll_dice,
+)
 from encounter_ai import AIStance, CombatActionType, EncounterEnemy
 
 RANDINT = "d20_rules.random.randint"
@@ -214,6 +221,60 @@ class TestCombatRunner(unittest.TestCase):
                 )
                 seen.add(reported[0])
         self.assertEqual(seen, set(outcomes), "not every ending was reachable")
+
+
+class TestResolveRestInputValidation(unittest.TestCase):
+    """`resolve_rest` fails closed on impossible HP state.
+
+    An unvalidated `max_hp` used to be accepted, so a caller passing
+    `current_hp > max_hp` got a negative heal and a nonsense recovery summary
+    instead of an error - the boundary reported success on impossible input.
+    """
+
+    def rest(self, **overrides):
+        args = {
+            "character_name": "Hero",
+            "rest_type": RestType.SHORT,
+            "current_hp": 5,
+            "max_hp": 10,
+            "hit_dice_available": 1,
+            "total_hit_dice": 1,
+            "hit_die_sides": 8,
+            "con_modifier": 2,
+            "current_spell_slots": 0,
+            "max_spell_slots": 2,
+        }
+        args.update(overrides)
+        return resolve_rest(**args)
+
+    def test_non_positive_max_hp_is_refused(self):
+        for bad in (0, -5):
+            with self.subTest(max_hp=bad), self.assertRaises(ValueError) as caught:
+                self.rest(max_hp=bad, current_hp=0)
+            self.assertIn("max_hp", str(caught.exception))
+
+    def test_current_hp_outside_the_pool_is_refused(self):
+        for bad in (-1, 11):
+            with self.subTest(current_hp=bad), self.assertRaises(ValueError):
+                self.rest(current_hp=bad)
+
+    def test_bool_is_never_accepted_where_an_integer_belongs(self):
+        with self.assertRaises(TypeError):
+            self.rest(max_hp=True)
+        with self.assertRaises(TypeError):
+            self.rest(current_hp=False)
+
+    def test_roll_dice_counts_are_validated(self):
+        with self.assertRaises(ValueError):
+            roll_dice(-1, 6)
+        with self.assertRaises(ValueError):
+            roll_dice(1, 0)
+
+    def test_a_legal_short_rest_still_resolves(self):
+        # The guard must not reject the legitimate path it protects.
+        result = self.rest(current_hp=5, max_hp=10, hit_dice_available=1)
+        self.assertEqual(result.rest_type, RestType.SHORT)
+        self.assertGreaterEqual(result.hp_recovered, 0)
 
 
 if __name__ == "__main__":

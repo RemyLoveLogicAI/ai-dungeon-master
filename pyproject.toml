@@ -43,7 +43,7 @@ dungeon-master-tui = "tui_runner:main"
 dev = ["pytest>=8", "pytest-cov>=6", "hypothesis>=6", "jsonschema>=4.18", "ruff>=0.14"]
 
 [tool.hatch.build.targets.wheel]
-only-include = ["combat_runner.py", "combat_events.py", "combat_log.py", "combat_schema.py", "d20_rules.py", "encounter_ai.py", "audio_synth.py", "game_foundation.py", "genui.py", "tui_runner.py", "schemas/combat-encounter-log-1.schema.json"]
+only-include = ["combat_runner.py", "combat_events.py", "combat_log.py", "combat_schema.py", "d20_rules.py", "encounter_ai.py", "audio_synth.py", "game_foundation.py", "genui.py", "tui_runner.py", "schemas/combat-encounter-log-1.schema.json", "py.typed"]
 sources = ["."]
 
 [tool.ruff]
