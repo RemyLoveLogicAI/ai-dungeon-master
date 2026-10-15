@@ -8,25 +8,107 @@ version = "0.1.0"
 description = "Self-contained D20 tactical combat engine with stance AI, procedural audio, generative UI, and multi-surface DM experience."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = [
-    "fastapi>=0.143.0",
-    "httpx>=0.28.1",
-    "pydantic>=2.14.1",
-    "uvicorn>=0.54.0",
-    "websockets>=16.1.1",
+license = "MIT"
+license-files = ["LICENSE"]
+keywords = ["d20", "dungeons-and-dragons", "rules-engine", "procedural-audio", "simulation"]
+# PEP 621 requires attribution. Kept as the project/organisation name that the
+# LICENSE already asserts as copyright holder, deliberately without a personal
+# address: package metadata is published publicly and permanently, so a private
+# contact is the maintainer's call to make, not a default to bake in.
+authors = [{ name = "RemyLoveLogicAI" }]
+maintainers = [{ name = "RemyLoveLogicAI" }]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Games/Entertainment :: Role-Playing",
+  "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis",
 ]
+dependencies = [
+  "fastapi>=0.143.0",
+  "httpx>=0.28.1",
+  "pydantic>=2.14.1",
+  "uvicorn>=0.54.0",
+  "websockets>=16.1.1",
+]
+
+[project.optional-dependencies]
+# Optional, and only for schema validation: the engine itself runs on stdlib alone.
+# `combat_schema.validate_payload` raises rather than skipping the check when this
+# is absent, so a requested verification never quietly passes.
+schema = ["jsonschema>=4.18"]
+
+[project.urls]
+Repository = "https://github.com/RemyLoveLogicAI/ai-dungeon-master"
+# CHANGELOG.md and docs/ are tracked, so these resolve rather than 404.
+Changelog = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/blob/main/docs/architecture.md"
+Issues = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/issues"
 
 [project.scripts]
 dungeon-master = "combat_runner:run_simulated_encounter"
+dungeon-master-tui = "tui_runner:main"
 dm-desktop = "desktop_launcher:main"
 dm-tui = "engine.dm_tui:run_tui"
 
 [dependency-groups]
-dev = ["pytest>=8", "ruff>=0.14"]
+dev = ["pytest>=8", "pytest-cov>=6", "hypothesis>=6", "jsonschema>=4.18", "ruff>=0.14", "mypy>=1.11"]
 
 [tool.hatch.build.targets.wheel]
-only-include = ["combat_runner.py", "d20_rules.py", "encounter_ai.py", "audio_synth.py", "desktop_launcher.py", "engine"]
+only-include = ["combat_runner.py", "combat_events.py", "combat_log.py", "combat_schema.py", "d20_rules.py", "encounter_ai.py", "audio_synth.py", "game_foundation.py", "genui.py", "tui_runner.py", "desktop_launcher.py", "engine", "schemas/combat-encounter-log-1.schema.json", "py.typed"]
 sources = ["."]
 
 [tool.ruff]
 line-length = 100
+
+[tool.mypy]
+# The package ships a `py.typed` marker, which is a promise to every consumer
+# that the inline annotations are real. A promise with no gate is a claim, so
+# the shipped modules - plus the web data exporter and the coverage gate, which
+# are part of the deliverable's tooling - are type-checked in CI.
+python_version = "3.10"
+files = [
+  "d20_rules.py",
+  "combat_events.py",
+  "combat_log.py",
+  "combat_schema.py",
+  "encounter_ai.py",
+  "audio_synth.py",
+  "game_foundation.py",
+  "genui.py",
+  "tui_runner.py",
+  "combat_runner.py",
+  "coverage_gate.py",
+  "web/build_demo.py",
+]
+# An optional third-party stub we do not control should not fail our build; our
+# own annotations are still checked in full.
+ignore_missing_imports = true
+warn_unused_ignores = true
+no_implicit_optional = true
+
+[tool.coverage.run]
+source = ["."]
+# Measure the shipped modules, not the tests that exercise them and not the
+# nested worktree under .worktrees/, which holds duplicate copies of them.
+omit = ["test_*.py", ".worktrees/*"]
+
+[tool.coverage.report]
+# Kept here rather than in the workflow so the gate applies to any
+# `pytest --cov` run, including a local one. The threshold sits a little under
+# the measured total rather than at an aspirational round number: enough
+# headroom that a new helper can land before its test without reddening CI, and
+# tight enough that a real coverage regression still fails.
+#
+# This guards the TOTAL only: a single module can collapse while the other
+# modules carry the average. `coverage_gate.py` applies a floor per module on
+# top of this one, and both run in CI. Raised alongside the per-module floors
+# when the suite went from 93.4% to 98.0%, so the same two-point rule applies.
+fail_under = 96
+show_missing = true
+skip_covered = true

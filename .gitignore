@@ -5,3 +5,16 @@ dist/
 audio_output/
 test_audio/
 *.egg-info/
+.hypothesis/
+.coverage
+coverage.json
+htmlcov/
+.mcp.json
+.agentsroom/handoff-transcript-*.txt
+.agentsroom/handoff-summary-*.md
+.agentsroom/fork-context-*.txt
+.agents/mcp_config.json
+.claude/memories/
+.devin/mcp_config.json
+.agents/mcp.json
+.omp/mcp.json
