@@ -10,12 +10,13 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
       - name: Verify version, changelog, and release gates
@@ -26,8 +27,43 @@ jobs:
         run: uv run pytest
       - name: Build distributions
         run: uv build
+      # The wheel built here is the artifact that gets published, and a tag can
+      # point at a commit CI never ran against, so the publish is gated on an
+      # install-and-run check: both entry points run, the shipped licence
+      # metadata is asserted, and the published schema has to resolve from the
+      # installed package rather than from the checkout it was built in.
+      - name: Smoke-test the wheel before publishing
+        run: |
+          VENV="$RUNNER_TEMP/wheel-venv"
+          uv venv "$VENV" --python 3.12
+          uv pip install --python "$VENV/bin/python" dist/*.whl
+          "$VENV/bin/dungeon-master" | tail -3
+          "$VENV/bin/dungeon-master-tui" | tail -1
+          # Leave the checkout before importing: running `python -` from the
+          # repository root puts the cwd on sys.path, so `import combat_schema`
+          # would load ./combat_schema.py and the source tree would satisfy a
+          # check meant to prove the wheel is intact.
+          cd "$(mktemp -d)"
+          "$VENV/bin/python" - <<'PY'
+          import importlib.metadata as metadata
+          import sys
+
+          import combat_schema
+
+          meta = metadata.metadata("ai-dungeon-master")
+          assert meta["License-Expression"] == "MIT", meta["License-Expression"]
+          # Prove the module under test is the installed one, so a checkout that
+          # happens to sit nearby cannot stand in for the packaged copy.
+          assert combat_schema.__file__.startswith(sys.prefix), combat_schema.__file__
+          schema = combat_schema.schema_path()
+          assert schema.is_file(), f"schema missing from the wheel: {schema}"
+          print("licence:", meta["License-Expression"], "| schema:", schema.name)
+          PY
+        env:
+          # Keep the generated WAVs off the runner's cache directory.
+          AI_DM_AUDIO_DIR: ${{ runner.temp }}/ai-dm-audio
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate-release-notes: true
           files: |

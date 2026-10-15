@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
+            "command": "[ -f \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\" ] || exit 0; python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
             "async": true,
             "_agentsroomHook": true
           }
@@ -18,9 +18,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
-            "async": true,
-            "_agentsroomHook": true
+            "command": "[ -f \"/Users/lovelogic/.agentsroom/hooks/team-reminder.py\" ] || exit 0; python3 \"/Users/lovelogic/.agentsroom/hooks/team-reminder.py\"",
+            "_agentsroomTeamHook": true
           }
         ]
       },
@@ -28,8 +27,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/team-reminder.py\"",
-            "_agentsroomTeamHook": true
+            "command": "[ -f \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\" ] || exit 0; python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
+            "async": true,
+            "_agentsroomHook": true
           }
         ]
       }
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
+            "command": "[ -f \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\" ] || exit 0; python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
             "async": true,
             "_agentsroomHook": true
           }
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
+            "command": "[ -f \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\" ] || exit 0; python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
             "async": true,
             "_agentsroomHook": true
           }
@@ -63,7 +63,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
+            "command": "[ -f \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\" ] || exit 0; python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
             "async": true,
             "_agentsroomHook": true
           }
@@ -75,7 +75,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
+            "command": "[ -f \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\" ] || exit 0; python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
             "async": true,
             "_agentsroomHook": true
           }
@@ -87,7 +87,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
+            "command": "[ -f \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\" ] || exit 0; python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
             "async": true,
             "_agentsroomHook": true
           }
@@ -100,7 +100,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
+            "command": "[ -f \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\" ] || exit 0; python3 \"/Users/lovelogic/.agentsroom/hooks/notify-agentsroom.py\"",
             "timeout": 720,
             "_agentsroomHook": true
           }

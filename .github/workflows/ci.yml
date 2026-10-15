@@ -8,32 +8,101 @@ on:
 permissions:
   contents: read
 
+# A newer push to the same ref supersedes the run in flight.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+      # The other jobs sync with --frozen, which does fail on a stale lock, but
+      # as a resolution error that never names the cause. This names it, and
+      # fails before the slow jobs start.
+      - name: Check uv.lock is in sync with pyproject.toml
+        run: uv lock --check
+      # Lint with the locked ruff rather than whatever `uvx ruff` resolves to,
+      # so an upstream release cannot turn an unrelated PR red.
       - name: Lint (ruff)
-        run: uvx ruff check .
+        run: |
+          uv sync --frozen --dev
+          uv run ruff check .
+      # The package ships a `py.typed` marker, which promises every consumer that
+      # the annotations are real. Without this step that promise is only a claim.
+      - name: Type-check (mypy)
+        run: uv run mypy
+      # The web client is hand-written JS with no build step, so a syntax error
+      # would otherwise surface only in a browser. Node is preinstalled on the
+      # runner, so this costs no toolchain of its own.
+      - name: Syntax-check the web client (node)
+        run: node --check web/app.js
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
       - name: Install dependencies
         run: uv sync --frozen --dev
-      - name: Test (pytest)
-        run: uv run pytest -v
+      # --cov applies the total fail_under gate configured in pyproject.toml.
+      # The JSON report is what the per-module gate below reads.
+      - name: Test (pytest) with coverage gate
+        run: uv run pytest -v --cov --cov-report=term-missing --cov-report=json
+      # `fail_under` guards the project total only, so a single module could
+      # collapse while the others carried the average and CI stayed green. The
+      # per-module floors in coverage_gate.py close that blind spot, and run on
+      # one pinned interpreter: coverage can shift between Python versions, and
+      # a per-module gate calibrated on one version must not be flaky on another.
+      - name: Enforce per-module coverage floors
+        if: matrix.python-version == '3.12'
+        run: uv run python coverage_gate.py
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Build distributions
+        run: uv build
+      # Installing the wheel into a throwaway venv is the only check that the
+      # packaged artifact, and not just the checkout, actually works. Both
+      # entry points are run, and the shipped licence metadata is asserted, so a
+      # packaging regression fails here rather than at the release tag.
+      - name: Smoke-test the wheel (entry points + licence metadata)
+        run: |
+          VENV="$RUNNER_TEMP/wheel-venv"
+          uv venv "$VENV" --python 3.12
+          uv pip install --python "$VENV/bin/python" dist/*.whl
+          "$VENV/bin/dungeon-master" | tail -3
+          "$VENV/bin/dungeon-master-tui" | tail -1
+          "$VENV/bin/python" - <<'PY'
+          import importlib.metadata as metadata
+
+          meta = metadata.metadata("ai-dungeon-master")
+          assert meta["License-Expression"] == "MIT", meta["License-Expression"]
+          print("licence:", meta["License-Expression"])
+          PY
+        env:
+          # Keep the generated WAVs off the runner's cache directory.
+          AI_DM_AUDIO_DIR: ${{ runner.temp }}/ai-dm-audio

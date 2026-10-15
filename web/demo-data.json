@@ -1,0 +1,776 @@
+{
+  "contract": "agentsurface-blueprint/0.1",
+  "encounter": {
+    "feed": [
+      "Round 1 \u2014 distance 4.0m \u2014 Shadow Gargoyle is Tactical.",
+      "[HIT] Paladin Alden attacks Shadow Gargoyle: Rolled 11+5=16 vs AC 14 -> Deals 10 Slashing damage.",
+      "[MISS] Shadow Gargoyle attacks Paladin Alden: Rolled 2+6=8 vs AC 16 -> Attack deflected.",
+      "Round 2 \u2014 distance 2.5m \u2014 Shadow Gargoyle is Tactical.",
+      "[HIT] Paladin Alden attacks Shadow Gargoyle: Rolled 18+5=23 vs AC 14 -> Deals 9 Slashing damage.",
+      "[HIT] Shadow Gargoyle attacks Paladin Alden: Rolled 19+5=24 vs AC 16 -> Deals 10 Slashing damage.",
+      "Round 3 \u2014 distance 1.0m \u2014 Shadow Gargoyle is Tactical.",
+      "[MISS] Paladin Alden attacks Shadow Gargoyle: Rolled 2+5=7 vs AC 14 -> Attack deflected.",
+      "[HIT] Shadow Gargoyle attacks Paladin Alden: Rolled 14+5=19 vs AC 16 -> Deals 6 Slashing damage.",
+      "Round 4 \u2014 distance 1.0m \u2014 Shadow Gargoyle is Tactical.",
+      "[MISS] Paladin Alden attacks Shadow Gargoyle: Rolled 3+5=8 vs AC 14 -> Attack deflected.",
+      "[HIT] Shadow Gargoyle attacks Paladin Alden: Rolled 14+5=19 vs AC 16 -> Deals 9 Slashing damage.",
+      "Round 5 \u2014 distance 1.0m \u2014 Shadow Gargoyle is Tactical.",
+      "[MISS] Paladin Alden attacks Shadow Gargoyle: Rolled 8+5=13 vs AC 14 -> Attack deflected.",
+      "[MISS] Shadow Gargoyle attacks Paladin Alden: Rolled 2+5=7 vs AC 16 -> Attack deflected.",
+      "Round 6 \u2014 distance 1.0m \u2014 Shadow Gargoyle is Tactical.",
+      "[HIT] Paladin Alden attacks Shadow Gargoyle: Rolled 19+5=24 vs AC 14 -> Deals 4 Slashing damage.",
+      "Shadow Gargoyle readies a defensive stance.",
+      "Round 7 \u2014 distance 1.0m \u2014 Shadow Gargoyle is Defensive.",
+      "[MISS] Paladin Alden attacks Shadow Gargoyle: Rolled 8+5=13 vs AC 14 -> Attack deflected.",
+      "Shadow Gargoyle readies a defensive stance.",
+      "Round 8 \u2014 distance 1.0m \u2014 Shadow Gargoyle is Defensive.",
+      "[HIT] Paladin Alden attacks Shadow Gargoyle: Rolled 18+5=23 vs AC 14 -> Deals 8 Slashing damage.",
+      "Shadow Gargoyle breaks engagement and flees into the shadows."
+    ],
+    "outcome": "enemy-fled",
+    "rounds": 8,
+    "seed": 7,
+    "surface": {
+      "components": [
+        {
+          "children": [
+            "header-card",
+            "main-split"
+          ],
+          "id": "root",
+          "props": {
+            "maxWidth": "960px",
+            "padding": "24px"
+          },
+          "type": "Surface"
+        },
+        {
+          "children": [
+            "header-row"
+          ],
+          "id": "header-card",
+          "props": {
+            "badge": "Round 8",
+            "title": "Tactical Arena"
+          },
+          "type": "Card"
+        },
+        {
+          "children": [
+            "metric-tension",
+            "metric-stance"
+          ],
+          "id": "header-row",
+          "props": {
+            "gap": "16px"
+          },
+          "type": "Row"
+        },
+        {
+          "id": "metric-tension",
+          "props": {
+            "label": "Tension Index",
+            "trend": "CRITICAL",
+            "value": "77%",
+            "variant": "danger"
+          },
+          "type": "Metric"
+        },
+        {
+          "id": "metric-stance",
+          "props": {
+            "label": "Enemy Stance",
+            "value": "Fleeing",
+            "variant": "accent"
+          },
+          "type": "Metric"
+        },
+        {
+          "children": [
+            "left-col",
+            "right-col"
+          ],
+          "id": "main-split",
+          "props": {
+            "gap": "20px"
+          },
+          "type": "Row"
+        },
+        {
+          "children": [
+            "tactical-card",
+            "feed-card"
+          ],
+          "id": "left-col",
+          "props": {
+            "flex": "3"
+          },
+          "type": "Column"
+        },
+        {
+          "children": [
+            "hero-card",
+            "enemy-card",
+            "action-card"
+          ],
+          "id": "right-col",
+          "props": {
+            "flex": "2"
+          },
+          "type": "Column"
+        },
+        {
+          "children": [
+            "tactical-grid"
+          ],
+          "id": "tactical-card",
+          "props": {
+            "title": "Tactical Arena"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "tactical-grid",
+          "props": {
+            "covers": [
+              [
+                5,
+                2
+              ],
+              [
+                5,
+                3
+              ],
+              [
+                6,
+                4
+              ]
+            ],
+            "enemyPos": [
+              9,
+              3
+            ],
+            "gridHeight": 6,
+            "gridWidth": 12,
+            "heroPos": [
+              2,
+              3
+            ],
+            "lighting": "Dim Light (Cavern)"
+          },
+          "type": "TacticalGrid"
+        },
+        {
+          "children": [
+            "log-entry-0",
+            "log-entry-1",
+            "log-entry-2",
+            "log-entry-3"
+          ],
+          "id": "feed-card",
+          "props": {
+            "title": "Chronicle Feed"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "log-entry-0",
+          "props": {
+            "content": "Shadow Gargoyle readies a defensive stance.",
+            "variant": "caption"
+          },
+          "type": "Text"
+        },
+        {
+          "id": "log-entry-1",
+          "props": {
+            "content": "Round 8 \u2014 distance 1.0m \u2014 Shadow Gargoyle is Defensive.",
+            "variant": "caption"
+          },
+          "type": "Text"
+        },
+        {
+          "id": "log-entry-2",
+          "props": {
+            "content": "[HIT] Paladin Alden attacks Shadow Gargoyle: Rolled 18+5=23 vs AC 14 -> Deals 8 Slashing damage.",
+            "variant": "caption"
+          },
+          "type": "Text"
+        },
+        {
+          "id": "log-entry-3",
+          "props": {
+            "content": "Shadow Gargoyle breaks engagement and flees into the shadows.",
+            "variant": "body"
+          },
+          "type": "Text"
+        },
+        {
+          "children": [
+            "hero-hp-bar",
+            "economy-row"
+          ],
+          "id": "hero-card",
+          "props": {
+            "title": "Hero: Paladin Alden"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "hero-hp-bar",
+          "props": {
+            "current": 13,
+            "label": "Hit Points",
+            "max": 38,
+            "unit": "HP"
+          },
+          "type": "ProgressBar"
+        },
+        {
+          "children": [
+            "eco-Action",
+            "eco-Bonus Action",
+            "eco-Reaction"
+          ],
+          "id": "economy-row",
+          "props": {
+            "gap": "8px",
+            "marginTop": "10px"
+          },
+          "type": "Row"
+        },
+        {
+          "id": "eco-Action",
+          "props": {
+            "label": "Action",
+            "variant": "success"
+          },
+          "type": "Badge"
+        },
+        {
+          "id": "eco-Bonus Action",
+          "props": {
+            "label": "Bonus Action",
+            "variant": "success"
+          },
+          "type": "Badge"
+        },
+        {
+          "id": "eco-Reaction",
+          "props": {
+            "label": "Reaction",
+            "variant": "neutral"
+          },
+          "type": "Badge"
+        },
+        {
+          "children": [
+            "enemy-hp-bar"
+          ],
+          "id": "enemy-card",
+          "props": {
+            "title": "Adversary: Shadow Gargoyle"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "enemy-hp-bar",
+          "props": {
+            "current": 4,
+            "label": "Threat Integrity",
+            "max": 35,
+            "unit": "HP"
+          },
+          "type": "ProgressBar"
+        },
+        {
+          "children": [
+            "btn-attack",
+            "btn-dodge",
+            "btn-spell",
+            "btn-rest"
+          ],
+          "id": "action-card",
+          "props": {
+            "title": "Action Matrix"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "btn-attack",
+          "props": {
+            "action": {
+              "intent": "HERO_ATTACK",
+              "payloadKeys": [
+                "btn-attack.attackType",
+                "btn-attack.target"
+              ]
+            },
+            "enabled": true,
+            "label": "\u2694\ufe0f Attack (Action)"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-dodge",
+          "props": {
+            "action": {
+              "intent": "HERO_DODGE",
+              "payloadKeys": []
+            },
+            "enabled": true,
+            "label": "\ud83d\udee1\ufe0f Dodge (Action)"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-spell",
+          "props": {
+            "action": {
+              "intent": "HERO_CAST_SPELL",
+              "payloadKeys": [
+                "btn-spell.spell",
+                "btn-spell.target"
+              ]
+            },
+            "enabled": true,
+            "label": "\ud83d\udd25 Cast Spell (Action)"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-rest",
+          "props": {
+            "action": {
+              "intent": "TAKE_REST",
+              "payloadKeys": [
+                "btn-rest.type"
+              ]
+            },
+            "enabled": true,
+            "label": "\ud83c\udfd5\ufe0f Short Rest"
+          },
+          "type": "Button"
+        }
+      ],
+      "dataModel": {
+        "btn-attack.attackType": "Melee",
+        "btn-attack.target": "Shadow Gargoyle",
+        "btn-rest.type": "Short",
+        "btn-spell.spell": "Guiding Bolt",
+        "btn-spell.target": "Shadow Gargoyle"
+      },
+      "intents": [
+        "HERO_ATTACK",
+        "HERO_DODGE",
+        "HERO_CAST_SPELL",
+        "TAKE_REST"
+      ],
+      "surface": {
+        "id": "demo-encounter",
+        "subtitle": "",
+        "title": "Tactical Arena",
+        "width": "wide"
+      }
+    }
+  },
+  "generator": "web/build_demo.py",
+  "scenario": {
+    "author": "AI Dungeon Master contributors",
+    "description": "An original D20-fantasy branching scenario for exercising the game-session and export contracts.",
+    "id": "the-bell-beneath-the-bridge",
+    "scenes": {
+      "moonlit_causeway": {
+        "blueprint": {
+          "components": [
+            {
+              "children": [
+                "scene-title",
+                "scene-narrative",
+                "choice-option-1",
+                "choice-option-2",
+                "choice-help",
+                "choice-select",
+                "choose-button"
+              ],
+              "id": "root",
+              "props": {
+                "direction": "column",
+                "gap": "12"
+              },
+              "type": "Stack"
+            },
+            {
+              "id": "scene-title",
+              "props": {
+                "level": 2,
+                "text": "The Moonlit Causeway"
+              },
+              "type": "Heading"
+            },
+            {
+              "id": "scene-narrative",
+              "props": {
+                "text": "A cracked stone causeway crosses a black ravine. A bell sounds from somewhere below, and a stranded courier watches the far bank."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-option-1",
+              "props": {
+                "text": "follow_the_bell: Descend toward the bell and search for its source."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-option-2",
+              "props": {
+                "text": "help_the_courier: Help the courier reach the watcher's camp."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-help",
+              "props": {
+                "text": "Choose an option by its id. The host maps the submitted id to a game choice."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-select",
+              "props": {
+                "bind": "choice_id",
+                "label": "Choice",
+                "options": [
+                  "follow_the_bell",
+                  "help_the_courier"
+                ]
+              },
+              "type": "Select"
+            },
+            {
+              "id": "choose-button",
+              "props": {
+                "action": {
+                  "intent": "choose",
+                  "payloadKeys": [
+                    "choice_id"
+                  ]
+                },
+                "label": "Continue"
+              },
+              "type": "Button"
+            }
+          ],
+          "dataModel": {
+            "choice_id": ""
+          },
+          "intents": [
+            "choose"
+          ],
+          "surface": {
+            "id": "the-bell-beneath-the-bridge",
+            "subtitle": "The Moonlit Causeway",
+            "title": "The Bell Beneath the Bridge",
+            "width": "wide"
+          }
+        },
+        "targets": {
+          "follow_the_bell": "sunken_shrine",
+          "help_the_courier": "watchers_camp"
+        }
+      },
+      "quiet_return": {
+        "blueprint": {
+          "components": [
+            {
+              "children": [
+                "scene-title",
+                "scene-narrative"
+              ],
+              "id": "root",
+              "props": {
+                "direction": "column",
+                "gap": "12"
+              },
+              "type": "Stack"
+            },
+            {
+              "id": "scene-title",
+              "props": {
+                "level": 2,
+                "text": "A Quiet Return"
+              },
+              "type": "Heading"
+            },
+            {
+              "id": "scene-narrative",
+              "props": {
+                "text": "At dawn, the bell falls silent. The bridge is safe again, and the people you helped remember your name."
+              },
+              "type": "Text"
+            }
+          ],
+          "dataModel": {
+            "choice_id": ""
+          },
+          "intents": [],
+          "surface": {
+            "id": "the-bell-beneath-the-bridge",
+            "subtitle": "A Quiet Return",
+            "title": "The Bell Beneath the Bridge",
+            "width": "wide"
+          }
+        },
+        "targets": {}
+      },
+      "rising_tide": {
+        "blueprint": {
+          "components": [
+            {
+              "children": [
+                "scene-title",
+                "scene-narrative"
+              ],
+              "id": "root",
+              "props": {
+                "direction": "column",
+                "gap": "12"
+              },
+              "type": "Stack"
+            },
+            {
+              "id": "scene-title",
+              "props": {
+                "level": 2,
+                "text": "The Rising Tide"
+              },
+              "type": "Heading"
+            },
+            {
+              "id": "scene-narrative",
+              "props": {
+                "text": "Water surges through the ravine. You escape with a hard-won story, but the crossing will need rebuilding."
+              },
+              "type": "Text"
+            }
+          ],
+          "dataModel": {
+            "choice_id": ""
+          },
+          "intents": [],
+          "surface": {
+            "id": "the-bell-beneath-the-bridge",
+            "subtitle": "The Rising Tide",
+            "title": "The Bell Beneath the Bridge",
+            "width": "wide"
+          }
+        },
+        "targets": {}
+      },
+      "sunken_shrine": {
+        "blueprint": {
+          "components": [
+            {
+              "children": [
+                "scene-title",
+                "scene-narrative",
+                "choice-option-1",
+                "choice-option-2",
+                "choice-help",
+                "choice-select",
+                "choose-button"
+              ],
+              "id": "root",
+              "props": {
+                "direction": "column",
+                "gap": "12"
+              },
+              "type": "Stack"
+            },
+            {
+              "id": "scene-title",
+              "props": {
+                "level": 2,
+                "text": "The Sunken Shrine"
+              },
+              "type": "Heading"
+            },
+            {
+              "id": "scene-narrative",
+              "props": {
+                "text": "Under the causeway, a small shrine glows beneath the water. Its keeper asks you to relight the lantern before the tide turns."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-option-1",
+              "props": {
+                "text": "relight_the_lantern: Restore the lantern and let the keeper guide you out."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-option-2",
+              "props": {
+                "text": "take_the_silver_bell: Take the silver bell and race the rising water."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-help",
+              "props": {
+                "text": "Choose an option by its id. The host maps the submitted id to a game choice."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-select",
+              "props": {
+                "bind": "choice_id",
+                "label": "Choice",
+                "options": [
+                  "relight_the_lantern",
+                  "take_the_silver_bell"
+                ]
+              },
+              "type": "Select"
+            },
+            {
+              "id": "choose-button",
+              "props": {
+                "action": {
+                  "intent": "choose",
+                  "payloadKeys": [
+                    "choice_id"
+                  ]
+                },
+                "label": "Continue"
+              },
+              "type": "Button"
+            }
+          ],
+          "dataModel": {
+            "choice_id": ""
+          },
+          "intents": [
+            "choose"
+          ],
+          "surface": {
+            "id": "the-bell-beneath-the-bridge",
+            "subtitle": "The Sunken Shrine",
+            "title": "The Bell Beneath the Bridge",
+            "width": "wide"
+          }
+        },
+        "targets": {
+          "relight_the_lantern": "quiet_return",
+          "take_the_silver_bell": "rising_tide"
+        }
+      },
+      "watchers_camp": {
+        "blueprint": {
+          "components": [
+            {
+              "children": [
+                "scene-title",
+                "scene-narrative",
+                "choice-option-1",
+                "choice-option-2",
+                "choice-help",
+                "choice-select",
+                "choose-button"
+              ],
+              "id": "root",
+              "props": {
+                "direction": "column",
+                "gap": "12"
+              },
+              "type": "Stack"
+            },
+            {
+              "id": "scene-title",
+              "props": {
+                "level": 2,
+                "text": "The Watcher's Camp"
+              },
+              "type": "Heading"
+            },
+            {
+              "id": "scene-narrative",
+              "props": {
+                "text": "The courier leads you to a camp of bridge watchers. Their supplies are low, but they know a safe route through the ravine."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-option-1",
+              "props": {
+                "text": "share_supplies: Share what you can and travel with the watchers."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-option-2",
+              "props": {
+                "text": "take_the_ravine_path: Take the quicker ravine path alone."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-help",
+              "props": {
+                "text": "Choose an option by its id. The host maps the submitted id to a game choice."
+              },
+              "type": "Text"
+            },
+            {
+              "id": "choice-select",
+              "props": {
+                "bind": "choice_id",
+                "label": "Choice",
+                "options": [
+                  "share_supplies",
+                  "take_the_ravine_path"
+                ]
+              },
+              "type": "Select"
+            },
+            {
+              "id": "choose-button",
+              "props": {
+                "action": {
+                  "intent": "choose",
+                  "payloadKeys": [
+                    "choice_id"
+                  ]
+                },
+                "label": "Continue"
+              },
+              "type": "Button"
+            }
+          ],
+          "dataModel": {
+            "choice_id": ""
+          },
+          "intents": [
+            "choose"
+          ],
+          "surface": {
+            "id": "the-bell-beneath-the-bridge",
+            "subtitle": "The Watcher's Camp",
+            "title": "The Bell Beneath the Bridge",
+            "width": "wide"
+          }
+        },
+        "targets": {
+          "share_supplies": "quiet_return",
+          "take_the_ravine_path": "rising_tide"
+        }
+      }
+    },
+    "startScene": "moonlit_causeway",
+    "title": "The Bell Beneath the Bridge",
+    "version": "1.0.0"
+  }
+}

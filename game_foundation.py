@@ -13,6 +13,23 @@ from typing import Any
 MCP_GAMES_ADAPTER_VERSION = "mcp-games-game-definition/1"
 AGENTSURFACE_ADAPTER_VERSION = "agentsurface-blueprint/0.1"
 
+_AGENTSURFACE_SURFACE_KEYS = frozenset({"id", "title", "subtitle", "width"})
+_AGENTSURFACE_COMPONENT_KEYS = frozenset({"id", "type", "props", "children"})
+_AGENTSURFACE_TOP_LEVEL_KEYS = frozenset(
+    {"surface", "dataModel", "components", "intents"}
+)
+_AGENTSURFACE_WIDTHS = frozenset({"compact", "wide"})
+_AGENTSURFACE_TEXT_PROPS = (
+    "text",
+    "label",
+    "title",
+    "subtitle",
+    "placeholder",
+    "alt",
+    "content",
+    "value",
+)
+
 
 @dataclass(frozen=True)
 class Choice:
@@ -51,15 +68,28 @@ class Scenario:
     def __post_init__(self) -> None:
         object.__setattr__(self, "scenes", tuple(self.scenes))
 
-        required_text = (self.id, self.version, self.title, self.author, self.start_scene)
-        if any(not isinstance(value, str) or not value.strip() for value in required_text):
-            raise ValueError("scenario id, version, title, author, and start_scene are required")
+        required_text = (
+            self.id,
+            self.version,
+            self.title,
+            self.author,
+            self.start_scene,
+        )
+        if any(
+            not isinstance(value, str) or not value.strip() for value in required_text
+        ):
+            raise ValueError(
+                "scenario id, version, title, author, and start_scene are required"
+            )
         if not isinstance(self.description, str):
             raise TypeError("scenario description must be a string")
         if any(not isinstance(scene, Scene) for scene in self.scenes):
             raise ValueError("scenes must contain only Scene values")
         scene_ids = [scene.id for scene in self.scenes]
-        if any(not isinstance(scene_id, str) or not scene_id.strip() for scene_id in scene_ids):
+        if any(
+            not isinstance(scene_id, str) or not scene_id.strip()
+            for scene_id in scene_ids
+        ):
             raise ValueError("scene ids must be non-empty")
         if len(scene_ids) != len(set(scene_ids)):
             raise ValueError("scene ids must be unique")
@@ -75,13 +105,18 @@ class Scenario:
             if any(not isinstance(choice, Choice) for choice in scene.choices):
                 raise ValueError(f"choices in scene {scene.id!r} must be Choice values")
             choice_ids = [choice.id for choice in scene.choices]
-            if any(not isinstance(choice_id, str) or not choice_id.strip() for choice_id in choice_ids):
+            if any(
+                not isinstance(choice_id, str) or not choice_id.strip()
+                for choice_id in choice_ids
+            ):
                 raise ValueError(f"choice ids in scene {scene.id!r} must be non-empty")
             if len(choice_ids) != len(set(choice_ids)):
                 raise ValueError(f"choice ids in scene {scene.id!r} must be unique")
             for choice in scene.choices:
                 if not isinstance(choice.text, str) or not choice.text.strip():
-                    raise ValueError(f"choice {choice.id!r} must have player-facing text")
+                    raise ValueError(
+                        f"choice {choice.id!r} must have player-facing text"
+                    )
                 if (
                     not isinstance(choice.target_scene, str)
                     or choice.target_scene not in scenes_by_id
@@ -133,7 +168,9 @@ class GameSession:
         object.__setattr__(self, "events", tuple(self.events))
         if any(not isinstance(event, GameEvent) for event in self.events):
             raise ValueError("events must contain only GameEvent values")
-        if [event.sequence for event in self.events] != list(range(1, len(self.events) + 1)):
+        if [event.sequence for event in self.events] != list(
+            range(1, len(self.events) + 1)
+        ):
             raise ValueError("event sequence must be contiguous starting at 1")
 
 
@@ -201,14 +238,146 @@ def to_mcp_games_v1(scenario: Scenario) -> dict[str, Any]:
     }
 
 
-def to_agentsurface_v01(scenario: Scenario) -> dict[str, Any]:
-    """Export a static AgentSurface v0.1 blueprint for the start-scene choice.
+def validate_agentsurface_v01(payload: Any, root: str = "root") -> None:
+    """Fail closed unless ``payload`` is a valid ``agentsurface-blueprint/0.1`` envelope.
+
+    This is the single definition of the v0.1 contract. Both producers use it -
+    the scenario adapter below and the generative-surface exporter in ``genui`` -
+    so the two can never drift into private, mutually incompatible shapes.
+
+    Raises ``TypeError`` for a value of the wrong type and ``ValueError`` for a
+    well-typed but invalid value, describing the first violation found.
+    """
+    if not isinstance(payload, dict):
+        raise TypeError("an agentsurface blueprint must be a JSON object")
+    if set(payload) != _AGENTSURFACE_TOP_LEVEL_KEYS:
+        raise ValueError(
+            "an agentsurface blueprint must have exactly surface, dataModel, "
+            f"components and intents; got {sorted(payload)}"
+        )
+
+    surface = payload["surface"]
+    if not isinstance(surface, dict):
+        raise TypeError("surface must be an object")
+    if set(surface) != _AGENTSURFACE_SURFACE_KEYS:
+        raise ValueError(
+            f"surface must define exactly {sorted(_AGENTSURFACE_SURFACE_KEYS)}"
+        )
+    if surface["width"] not in _AGENTSURFACE_WIDTHS:
+        raise ValueError(f"surface width {surface['width']!r} is not compact or wide")
+    for key in ("id", "title", "subtitle"):
+        if not isinstance(surface[key], str):
+            raise TypeError(f"surface.{key} must be a string")
+
+    data_model = payload["dataModel"]
+    if not isinstance(data_model, dict):
+        raise TypeError("dataModel must be an object")
+
+    intents = payload["intents"]
+    if not isinstance(intents, list) or not all(
+        isinstance(item, str) for item in intents
+    ):
+        raise ValueError("intents must be a list of strings")
+
+    components = payload["components"]
+    if not isinstance(components, list) or not components:
+        raise ValueError("components must be a non-empty list")
+
+    by_id: dict[str, dict[str, Any]] = {}
+    for component in components:
+        if not isinstance(component, dict):
+            raise TypeError("every component must be an object")
+        unsupported = set(component) - _AGENTSURFACE_COMPONENT_KEYS
+        if unsupported:
+            raise ValueError(
+                f"component carries unsupported keys: {sorted(unsupported)}"
+            )
+        component_id = component.get("id")
+        if not isinstance(component_id, str) or not component_id:
+            raise ValueError("every component needs a non-empty string id")
+        if component_id in by_id:
+            raise ValueError(f"duplicate component id {component_id!r}")
+        if not isinstance(component.get("type"), str):
+            raise TypeError(f"component {component_id!r} needs a string type")
+        props = component.get("props", {})
+        if not isinstance(props, dict):
+            raise TypeError(f"component {component_id!r} props must be an object")
+        children = component.get("children")
+        if children is not None and (
+            not isinstance(children, list)
+            or not all(isinstance(child, str) for child in children)
+        ):
+            raise ValueError(
+                f"component {component_id!r} children must be a list of ids"
+            )
+        by_id[component_id] = component
+
+    if root not in by_id:
+        raise ValueError(f"components must contain the {root!r} root")
+
+    reachable: set[str] = set()
+    pending = [root]
+    while pending:
+        current = pending.pop()
+        if current in reachable:
+            raise ValueError(f"component {current!r} is reachable more than once")
+        if current not in by_id:
+            raise ValueError(f"a component references unknown child {current!r}")
+        reachable.add(current)
+        pending.extend(by_id[current].get("children", ()))
+
+    unreachable = set(by_id) - reachable
+    if unreachable:
+        raise ValueError(f"unreachable components: {', '.join(sorted(unreachable))}")
+
+    for component_id, component in by_id.items():
+        props = component.get("props", {})
+        if component["type"] == "Button":
+            action = props.get("action")
+            if not isinstance(action, dict):
+                raise ValueError(f"button {component_id!r} needs a props.action object")
+            if action.get("intent") not in intents:
+                raise ValueError(
+                    f"button {component_id!r} intent {action.get('intent')!r} is not declared"
+                )
+            payload_keys = action.get("payloadKeys", [])
+            if not isinstance(payload_keys, list) or not all(
+                isinstance(key, str) and key in data_model for key in payload_keys
+            ):
+                raise ValueError(
+                    f"button {component_id!r} payloadKeys must name dataModel keys"
+                )
+        if "bind" in props and props["bind"] not in data_model:
+            raise ValueError(
+                f"component {component_id!r} binds {props['bind']!r}, absent from dataModel"
+            )
+        for key in _AGENTSURFACE_TEXT_PROPS:
+            if key in props and not isinstance(props[key], str):
+                raise ValueError(
+                    f"component {component_id!r} props.{key} must be a string"
+                )
+
+
+def to_agentsurface_v01(
+    scenario: Scenario, scene_id: str | None = None
+) -> dict[str, Any]:
+    """Export a static AgentSurface v0.1 blueprint for one scene's choices.
+
+    Defaults to the scenario's start scene. Pass ``scene_id`` to export any
+    other scene of the same, already-validated scenario - an unknown id is
+    refused rather than silently falling back to the start scene, so a caller
+    that mistypes a scene never renders the wrong surface and believes it.
 
     The renderer handles these strings as text; this adapter neither emits HTML
     nor accepts executable props. Choice ids are used as Select values so the
     intent payload can be routed unambiguously by a host.
     """
-    opening = scenario.scenes_by_id[scenario.start_scene]
+    scenes_by_id = scenario.scenes_by_id
+    if scene_id is None:
+        scene_id = scenario.start_scene
+    elif scene_id not in scenes_by_id:
+        raise ValueError(f"unknown scene {scene_id!r}")
+    opening = scenes_by_id[scene_id]
     data_model = {"choice_id": ""}
     components: list[dict[str, Any]] = [
         {
@@ -267,7 +436,7 @@ def to_agentsurface_v01(scenario: Scenario) -> dict[str, Any]:
         components[0]["children"].extend(
             [*choice_component_ids, "choice-help", "choice-select", "choose-button"]
         )
-    return {
+    blueprint = {
         "surface": {
             "id": scenario.id,
             "title": scenario.title,
@@ -278,6 +447,8 @@ def to_agentsurface_v01(scenario: Scenario) -> dict[str, Any]:
         "components": components,
         "intents": ["choose"] if opening.choices else [],
     }
+    validate_agentsurface_v01(blueprint)
+    return blueprint
 
 
 STARTER_SCENARIO = Scenario(

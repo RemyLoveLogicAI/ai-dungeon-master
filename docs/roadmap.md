@@ -12,12 +12,44 @@ where possible.
 - Versioned, deterministic MCP Games and AgentSurface export contracts.
 - Architecture, safety, licensing, and integration boundaries documented.
 
-## 1 — Deterministic simulation boundary
+## 1 — Deterministic simulation boundary (partially implemented)
 
-- Separate authoritative campaign state in MCP Games from per-encounter engine
-  state in this repository; define compact validated request/result schemas.
-- Add an injectable/seeded dice source and replayable combat events before
-  claiming deterministic simulation.
+- **Implemented:** injectable dice sources (`DiceSource` with module-random,
+  seeded, scripted, and recording implementations) threaded through every roll,
+  plus the `AttackRequest` value object that isolates every non-dice attack
+  input.
+- **Implemented:** replayable combat events. `combat_events.py` records one
+  attack as a `combat-attack-event/1` event plus a `combat-attack-result/1`
+  result, and re-derives the resolution from the recorded rolls alone;
+  `combat_runner.py` logs and verifies them per run.
+- **Implemented:** the durable `combat-encounter-log/1` envelope in
+  `combat_log.py`, with strict fail-closed loading, one-version-at-a-time
+  migration (unknown newer versions are refused, not guessed), bounded retention
+  via `trim_log`, and size-guarded save/load. Replay, migration, retention, and
+  every rejection path are covered by `test_combat_log.py`.
+- **Implemented:** validation against a published JSON Schema. The envelope
+  ships as `schemas/combat-encounter-log-1.schema.json`, a consumer can apply it
+  without importing this package, and `combat_schema.py` applies the same
+  artifact at the boundary when `validate_schema=True` is passed to `loads`,
+  `load_log`, or either runner. `test_combat_schema.py` checks the artifact
+  against the engine's own enums and limits, validates every log the engine can
+  generate, and pins which layer owns which rule. The check needs the optional
+  `jsonschema` extra and raises rather than skipping when it is absent.
+- **Implemented:** a durable, resumable encounter in `tui_runner.py`. Each round
+  is written to the envelope as it completes, `--resume` rebuilds the state from
+  the recorded attacks (refusing a log that does not replay, or one from another
+  encounter), and anything a log cannot describe is reported on screen rather
+  than guessed.
+- **Open:** the envelope is a contract, not a persistence service. There is no
+  scheduling, replication, deletion, or cross-process concurrency story; a
+  resume reads one local file on request rather than owning a session store.
+- **Open:** migration is exercised only against a test-registered older version,
+  because no second envelope version exists yet, and the schema is applied only
+  from Python - another language's consumer is expected to run its own validator
+  over the published artifact.
+- **Open:** separate authoritative campaign state in MCP Games from
+  per-encounter engine state in this repository; define compact validated
+  request/result schemas shared with the consumer.
 - Define `dm/init_encounter` and `dm/resolve_turn` as versioned adapters only
   after idempotency, error behavior, ownership, and resource limits are tested.
 - Keep the D20 scenario here as a reference fixture; narrative/campaign
@@ -38,6 +70,16 @@ where possible.
   renderer. UI remains ephemeral; a campaign/session source of truth does not
   move into the blueprint or simulation package.
 - Confirm the proposed `dm/render_surface` responsibility with both consumers.
+- Two local clients prototype the result→presentation handoff and the
+  intent-button shape: the ANSI terminal surface (`genui.py` + `tui_runner.py`),
+  which saves and resumes its encounter through the durable envelope, and a
+  static browser client (`web/`) that renders the exported envelope with no
+  JavaScript game logic. Both are disposable, not the AgentSurface renderer.
+  Their `SurfaceBlueprint` is **reconciled** with the
+  `agentsurface-blueprint/0.1` export from `game_foundation.py`: both producers
+  validate through the one `validate_agentsurface_v01` definition, and
+  `test_web_demo.py` additionally pins that the browser renderer covers every
+  component type either producer emits.
 - Keep intent names/data minimal; add authorization and validation at the host
   before side effects. Expose accessible alternatives to audio/visual cues.
 
