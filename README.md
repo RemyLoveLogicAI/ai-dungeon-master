@@ -144,6 +144,10 @@ requested check is never reported as one that passed. The runners ask for a
 validator before they start, so `--validate-schema` refuses with exit status 2
 without printing a round or writing the log.
 
+Audio defaults to `audio_output/` under the current working directory. Python
+callers can pass `audio_dir=...` to `run_simulated_encounter` for a different
+per-run destination.
+
 Run the generative terminal surface (TUI), save the encounter, and resume it:
 
 ```bash
@@ -206,10 +210,9 @@ The CI workflow runs Ruff and pytest on Python 3.10–3.14 with `--cov`, so the
 total `fail_under` gate in `pyproject.toml` applies to a local
 `uv run pytest --cov` too. That gate cannot see one module collapsing while the
 others carry the average, so `coverage_gate.py` applies a floor per module on
-top of it and refuses a report older than the code it describes. No runtime
-dependencies are added by the foundation: `jsonschema` is a development and
-optional-extra dependency, used only to validate logs against the published
-schema.
+top of it and refuses a report older than the code it describes.
+The simulation/export core remains stdlib-only. `jsonschema` is an optional
+extra used only for published-schema checks.
 
 ## CI/CD
 

@@ -1,6 +1,8 @@
 import contextlib
 import io
+import os
 import random
+import tempfile
 import unittest
 from unittest import mock
 
@@ -39,6 +41,19 @@ def attack(ac=15, modifier=5, dice=1, sides=8, dmg_mod=3, mode=AdvantageMode.NOR
 
 
 class TestResolveAttack(unittest.TestCase):
+    def test_invalid_damage_dice_rejected_before_rolling(self):
+        for dice, sides in ((1, 0), (1, -1), (-1, 8)):
+            with self.subTest(dice=dice, sides=sides), mock.patch(RANDINT) as rng:
+                with self.assertRaises(ValueError):
+                    attack(dice=dice, sides=sides)
+                rng.assert_not_called()
+
+    def test_invalid_dice_rejected_and_zero_count_allowed(self):
+        for count, sides in ((1, 0), (1, -1), (-1, 8)):
+            with self.subTest(count=count, sides=sides), self.assertRaises(ValueError):
+                roll_dice(count, sides)
+        self.assertEqual(roll_dice(0, 8), 0)
+
     def test_natural_1_always_misses(self):
         with mock.patch(RANDINT, side_effect=[1, 1]):
             res = attack(ac=1, modifier=100)
@@ -100,6 +115,25 @@ class TestResolveAttack(unittest.TestCase):
 
 
 class TestEncounterEnemyDecisions(unittest.TestCase):
+    def test_max_hp_must_be_positive(self):
+        for max_hp in (0, -5):
+            with (
+                self.subTest(max_hp=max_hp),
+                self.assertRaisesRegex(ValueError, "max_hp must be positive"),
+            ):
+                EncounterEnemy(max_hp=max_hp)
+
+    def test_negative_damage_rejected_without_changing_state(self):
+        enemy = EncounterEnemy(max_hp=40)
+        enemy.apply_damage(10)
+        stance = enemy.stance
+        with self.assertRaisesRegex(ValueError, "damage must be nonnegative"):
+            enemy.apply_damage(-15)
+        self.assertEqual(enemy.current_hp, 30)
+        self.assertEqual(enemy.stance, stance)
+        enemy.apply_damage(100)
+        self.assertEqual(enemy.current_hp, 0)
+
     def test_fleeing_never_attacks(self):
         enemy = EncounterEnemy(max_hp=100)
         enemy.apply_damage(85)
@@ -169,15 +203,33 @@ class TestEncounterEnemyDecisions(unittest.TestCase):
         enemy = EncounterEnemy(max_hp=100)
         enemy.apply_damage(60)
         self.assertEqual(enemy.stance, AIStance.DEFENSIVE)
-        self.assertEqual(
-            enemy.decide_turn_action(1.0).action, CombatActionType.DODGE
-        )
-        self.assertEqual(
-            enemy.decide_turn_action(5.0).action, CombatActionType.RANGED
-        )
+        self.assertEqual(enemy.decide_turn_action(1.0).action, CombatActionType.DODGE)
+        self.assertEqual(enemy.decide_turn_action(5.0).action, CombatActionType.RANGED)
 
 
 class TestCombatRunner(unittest.TestCase):
+    def test_audio_directory_uses_cwd_or_caller_location(self):
+        with tempfile.TemporaryDirectory() as caller_dir:
+            for chosen, expected in (
+                (None, os.path.join(caller_dir, "audio_output")),
+                (
+                    os.path.join(caller_dir, "custom"),
+                    os.path.join(caller_dir, "custom"),
+                ),
+            ):
+                with (
+                    self.subTest(chosen=chosen),
+                    mock.patch("combat_runner.os.getcwd", return_value=caller_dir),
+                    mock.patch(
+                        "combat_runner.generate_all_sfx", return_value={}
+                    ) as sfx,
+                    mock.patch("combat_runner.EncounterEnemy") as enemy,
+                    contextlib.redirect_stdout(io.StringIO()),
+                ):
+                    enemy.return_value.current_hp = 0
+                    combat_runner.run_simulated_encounter(audio_dir=chosen)
+                    sfx.assert_called_once_with(expected)
+
     def test_encounter_runs_to_conclusion_without_touching_disk(self):
         fake_paths = {
             name: f"/nonexistent/{name}.wav"
@@ -187,9 +239,12 @@ class TestCombatRunner(unittest.TestCase):
             with self.subTest(seed=seed):
                 random.seed(seed)
                 out = io.StringIO()
-                with mock.patch(
-                    "combat_runner.generate_all_sfx", return_value=fake_paths
-                ) as sfx, contextlib.redirect_stdout(out):
+                with (
+                    mock.patch(
+                        "combat_runner.generate_all_sfx", return_value=fake_paths
+                    ) as sfx,
+                    contextlib.redirect_stdout(out),
+                ):
                     combat_runner.run_simulated_encounter()
                 sfx.assert_called_once()
                 self.assertIn("ENCOUNTER CONCLUDED", out.getvalue())
@@ -216,9 +271,12 @@ class TestCombatRunner(unittest.TestCase):
             with self.subTest(seed=seed):
                 random.seed(seed)
                 out = io.StringIO()
-                with mock.patch(
-                    "combat_runner.generate_all_sfx", return_value=fake_paths
-                ), contextlib.redirect_stdout(out):
+                with (
+                    mock.patch(
+                        "combat_runner.generate_all_sfx", return_value=fake_paths
+                    ),
+                    contextlib.redirect_stdout(out),
+                ):
                     combat_runner.run_simulated_encounter()
                 text = out.getvalue()
                 reported = [name for name, needle in outcomes.items() if needle in text]

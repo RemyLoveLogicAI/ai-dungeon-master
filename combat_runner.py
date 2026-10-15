@@ -1,7 +1,14 @@
 import os
 
-from audio_synth import default_audio_dir, generate_all_sfx
-from combat_log import CombatLog, CombatLogEntry, load_log, record_entry, save_log, verify_log
+from audio_synth import generate_all_sfx
+from combat_log import (
+    CombatLog,
+    CombatLogEntry,
+    load_log,
+    record_entry,
+    save_log,
+    verify_log,
+)
 from combat_schema import require_validator
 from d20_rules import AdvantageMode, AttackRequest, DamageType, DiceSource
 from encounter_ai import CombatActionType, EncounterEnemy
@@ -11,26 +18,25 @@ def run_simulated_encounter(
     dice: DiceSource | None = None,
     log_path: str | os.PathLike[str] | None = None,
     validate_schema: bool = False,
+    audio_dir: str | os.PathLike[str] | None = None,
 ):
     """Run the demonstration encounter.
 
     Pass ``dice`` to make the run reproducible; each attack is logged as a
-    replayable event/result pair and verified at the end. Pass ``log_path`` to
-    also write the encounter log there and re-verify it after a reload. Pass
-    ``validate_schema`` to check that reload against the published JSON Schema as
-    well as the in-repo readers.
+    replayable event/result pair and verified at the end. ``log_path`` writes
+    and re-verifies a durable log. ``validate_schema`` checks it against the
+    published JSON Schema. ``audio_dir`` overrides the generated SFX directory.
     """
     if validate_schema:
-        # Fail before the run, not after printing a replay report it cannot check.
         require_validator()
-
     print("=" * 60)
     print("      AI DUNGEON MASTER: D20 TACTICAL COMBAT ENGINE        ")
     print("=" * 60)
 
-    # 1. Generate SFX assets into a writable cache dir. Never the package dir:
-    # an installed wheel lives in site-packages, which may be read-only.
-    audio_dir = default_audio_dir()
+    audio_dir = (
+        os.path.join(os.getcwd(), "audio_output") if audio_dir is None else audio_dir
+    )
+    audio_dir = os.fspath(audio_dir)
     sfx_paths = generate_all_sfx(audio_dir)
     print(f"[*] Procedural audio SFX initialized in {audio_dir}")
 
@@ -40,13 +46,15 @@ def run_simulated_encounter(
     player_hp = player_max_hp
     player_ac = 16
     player_attack_mod = 5
-    
+
     enemy = EncounterEnemy("Shadow Gargoyle", max_hp=35, ac=14, spell_slots=2)
-    distance = 4.0 # meters
+    distance = 4.0  # meters
 
     print("[*] Encounter started:")
     print(f"    Player: {player_name} (HP {player_hp}, AC {player_ac})")
-    print(f"    Enemy:  {enemy.name} (HP {enemy.current_hp}, AC {enemy.ac}, Stance: {enemy.stance.value})")
+    print(
+        f"    Enemy:  {enemy.name} (HP {enemy.current_hp}, AC {enemy.ac}, Stance: {enemy.stance.value})"
+    )
     print("-" * 60)
 
     entries: list[CombatLogEntry] = []
@@ -65,9 +73,11 @@ def run_simulated_encounter(
             damage_die_sides=8,
             damage_modifier=3,
             damage_type=DamageType.SLASHING,
-            advantage=AdvantageMode.NORMAL
+            advantage=AdvantageMode.NORMAL,
         )
-        player_entry, res = record_entry(player_request, sequence=len(entries) + 1, dice=dice)
+        player_entry, res = record_entry(
+            player_request, sequence=len(entries) + 1, dice=dice
+        )
         entries.append(player_entry)
         print(res.combat_message)
 
@@ -80,7 +90,9 @@ def run_simulated_encounter(
         else:
             print(f"  [AUDIO TRIGGER: {sfx_paths['dice_roll']}]")
 
-        print(f"  -> {enemy.name} HP: {enemy.current_hp}/{enemy.max_hp} (Stance: {enemy.stance.value})")
+        print(
+            f"  -> {enemy.name} HP: {enemy.current_hp}/{enemy.max_hp} (Stance: {enemy.stance.value})"
+        )
 
         if enemy.current_hp <= 0:
             print(f"\nVICTORY! {enemy.name} has been defeated by {player_name}!")
@@ -107,7 +119,7 @@ def run_simulated_encounter(
                 damage_dice_count=decision.damage_dice_count,
                 damage_die_sides=decision.damage_die_sides,
                 damage_modifier=decision.damage_modifier,
-                damage_type=decision.damage_type
+                damage_type=decision.damage_type,
             )
             enemy_entry, e_res = record_entry(
                 enemy_request, sequence=len(entries) + 1, dice=dice
@@ -115,12 +127,16 @@ def run_simulated_encounter(
             entries.append(enemy_entry)
             print(f"  {e_res.combat_message}")
             if e_res.is_hit:
-                player_hp -= e_res.damage_dealt
+                player_hp = max(0, player_hp - e_res.damage_dealt)
                 if decision.damage_type == DamageType.FIRE:
                     print(f"  [AUDIO TRIGGER: {sfx_paths['fireball_impact']}]")
                 else:
                     print(f"  [AUDIO TRIGGER: {sfx_paths['sword_clash']}]")
             print(f"  -> {player_name} HP: {max(0, player_hp)}/{player_max_hp}")
+
+        if player_hp <= 0:
+            print(f"\nDEFEAT! {player_name} has been defeated by {enemy.name}!")
+            break
 
         # Engage distance adjusts
         if distance > 1.5:
@@ -156,6 +172,7 @@ def run_simulated_encounter(
             f"[Log] {len(restored)} entries written to {saved} and verified on reload "
             f"({scope}): {status}"
         )
+
 
 if __name__ == "__main__":
     run_simulated_encounter()

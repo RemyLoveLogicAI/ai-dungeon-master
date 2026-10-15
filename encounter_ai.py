@@ -38,6 +38,8 @@ class AICombatDecision:
 
 class EncounterEnemy:
     def __init__(self, name: str = "Shadow Gargoyle", max_hp: int = 40, ac: int = 14, spell_slots: int = 2):
+        if max_hp <= 0:
+            raise ValueError("max_hp must be positive")
         self.name = name
         self.max_hp = max(0, int(max_hp))
         self.current_hp = self.max_hp
@@ -47,7 +49,8 @@ class EncounterEnemy:
         self.update_stance()
 
     def apply_damage(self, amount: int):
-        amount = max(amount, 0)
+        if amount < 0:
+            raise ValueError("damage must be nonnegative")
         self.current_hp = max(0, self.current_hp - amount)
         self.update_stance()
 
