@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CONTRIBUTING.md`, `SECURITY.md`, a pull-request template, and Dependabot
   configuration.
 
+- `encounter_generator.py`: seeded XP-budget encounter selection from caller-provided
+  creature candidates, preserving arbitrary facets in the `gpf/encounter.v1`
+  payload. No creature catalog is bundled.
+
 ### Fixed
 
 - `resolve_rest` now validates `max_hp` and `current_hp` at the boundary,

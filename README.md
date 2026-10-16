@@ -15,6 +15,8 @@ starter scenario and explicit export adapters for two separate projects:
   `schemas/combat-encounter-log-1.schema.json`, a published JSON Schema any
   consumer can apply without this package. Needs the optional `jsonschema`
   extra, and fails loudly rather than skipping a requested check without it.
+- **`encounter_generator.py`** — seeded XP-budget encounter selection from caller-supplied
+  creature candidates, with custom facets preserved in the `gpf/encounter.v1` payload.
 - **`encounter_ai.py`** — stance-based enemy combat AI whose turn choice is a
   pure query: a decision reports its slot cost and the caller commits it.
 - **`audio_synth.py`** — procedural sound effects written directly to 16-bit WAV,
@@ -85,6 +87,44 @@ from d20_rules import SeededDiceSource
 
 run_simulated_encounter(dice=SeededDiceSource(7))
 ```
+
+### Generate an XP-budget encounter
+
+`encounter_generator.py` uses standard D&D 5e XP thresholds to select an
+encounter from explicit caller-provided candidates. No creature catalog or D&D
+Bible data is bundled; each candidate's `facets` mapping is copied unchanged
+into the output under the `gpf/encounter.v1` contract.
+
+```python
+from encounter_generator import CreatureCandidate, Difficulty, generate_encounter
+
+candidates = [
+    CreatureCandidate(
+        name="Goblin",
+        xp=50,
+        cr="1/4",
+        facets={"biome": ["forest"], "tactics": {"preferred": "ambush"}},
+    ),
+    CreatureCandidate(
+        name="Orc",
+        xp=100,
+        cr="1/2",
+        facets={"biome": ["hills"], "alignment": "chaotic evil"},
+    ),
+]
+encounter = generate_encounter(
+    party=[3, 3, 3, 3],
+    candidates=candidates,
+    target_difficulty=Difficulty.MEDIUM,
+    seed=123,
+)
+print(encounter["achieved_difficulty"], encounter["budget"])
+```
+
+Reusing the same inputs and seed returns the same encounter. The generator
+validates levels, counts, candidate XP and difficulty labels. Its random search
+is a heuristic: the target difficulty is not guaranteed when available
+candidates cannot form a valid budget.
 
 Record a single attack and replay it from the dice it consumed:
 
