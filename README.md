@@ -126,6 +126,18 @@ validates levels, counts, candidate XP and difficulty labels. Its random search
 is a heuristic: the target difficulty is not guaranteed when available
 candidates cannot form a valid budget.
 
+Execute the generated encounter through the turn loop (`CORE-GAME-LOOP-SPEC.md`):
+
+```python
+from combat_runner import CombatantState, run_generated_encounter
+
+party = [
+    CombatantState(name="Alden", current_hp=38, max_hp=38, ac=16, attack_modifier=5)
+]
+result = run_generated_encounter(party, candidates, Difficulty.MEDIUM, seed=123)
+print(result["outcome"], result["rounds"], result["xp_awarded"])
+```
+
 Record a single attack and replay it from the dice it consumed:
 
 ```python

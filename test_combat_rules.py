@@ -22,6 +22,7 @@ from d20_rules import (
     roll_dice,
 )
 from encounter_ai import AIStance, CombatActionType, EncounterEnemy
+from encounter_generator import CreatureCandidate, Difficulty
 
 RANDINT = "d20_rules.random.randint"
 
@@ -570,6 +571,182 @@ class TestResolveSavingThrow(unittest.TestCase):
         self.assertEqual(result.roll.total, 18)
         self.assertIn("Wisdom", result.message)
         self.assertIn("16+2=18", result.message)
+
+
+class TestCoreGameLoopAndAdapter(unittest.TestCase):
+    def setUp(self):
+        self.pc = combat_runner.CombatantState(
+            name="Paladin Alden",
+            current_hp=38,
+            max_hp=38,
+            ac=16,
+            attack_modifier=5,
+            damage_dice_count=1,
+            damage_die_sides=8,
+            damage_modifier=3,
+            damage_type=DamageType.SLASHING,
+            abilities={
+                "str": 16,
+                "dex": 10,
+                "con": 14,
+                "int": 10,
+                "wis": 12,
+                "cha": 14,
+                "level": 3,
+            },
+        )
+        self.goblin_spec = {
+            "name": "Goblin Ambusher",
+            "hp": {"current": 7, "max": 7, "formula": "2d6"},
+            "ac": 15,
+            "ac_source": "leather armor, shield",
+            "attack_modifier": 4,
+            "damage": {"dice": 1, "sides": 6, "modifier": 2, "type": "piercing"},
+            "abilities": {"str": 8, "dex": 14, "con": 10, "int": 10, "wis": 8, "cha": 8},
+            "cr": 0.25,
+            "xp": 50,
+            "stance": "aggressive",
+        }
+
+    def test_state_block_round_trip_matches_spec(self):
+        goblin = combat_runner.CombatantState.from_state_block(self.goblin_spec)
+        self.assertEqual(goblin.name, "Goblin Ambusher")
+        self.assertEqual(goblin.current_hp, 7)
+        self.assertEqual(goblin.max_hp, 7)
+        self.assertEqual(goblin.ac, 15)
+        self.assertEqual(goblin.ac_source, "leather armor, shield")
+        self.assertEqual(goblin.damage_type, DamageType.PIERCING)
+        self.assertEqual(goblin.cr, 0.25)
+        self.assertEqual(goblin.xp, 50)
+        self.assertEqual(goblin.stance, "aggressive")
+
+        exported = goblin.to_state_block()
+        self.assertEqual(exported["name"], self.goblin_spec["name"])
+        self.assertEqual(exported["hp"], self.goblin_spec["hp"])
+        self.assertEqual(exported["ac"], self.goblin_spec["ac"])
+        self.assertEqual(exported["damage"], self.goblin_spec["damage"])
+        self.assertEqual(exported["cr"], self.goblin_spec["cr"])
+        self.assertEqual(exported["xp"], self.goblin_spec["xp"])
+
+    def test_combatant_validation(self):
+        with self.assertRaises(ValueError):
+            combat_runner.CombatantState(
+                name="", current_hp=10, max_hp=10, ac=10, attack_modifier=0
+            )
+        with self.assertRaises(ValueError):
+            combat_runner.CombatantState(
+                name="Hero", current_hp=10, max_hp=0, ac=10, attack_modifier=0
+            )
+        with self.assertRaises(ValueError):
+            combat_runner.CombatantState(
+                name="Hero", current_hp=10, max_hp=10, ac=-1, attack_modifier=0
+            )
+        with self.assertRaises(ValueError):
+            combat_runner.CombatantState(
+                name="Hero",
+                current_hp=10,
+                max_hp=10,
+                ac=10,
+                attack_modifier=0,
+                damage_dice_count=0,
+            )
+
+    def test_from_candidate_fixture(self):
+        candidate = CreatureCandidate("Orc", 100, "1/2", {"biome": ["hills"]})
+        combatant = combat_runner.CombatantState.from_candidate(candidate)
+        self.assertEqual(combatant.name, "Orc")
+        self.assertEqual(combatant.cr, 0.5)
+        self.assertEqual(combatant.xp, 100)
+        self.assertGreater(combatant.max_hp, 0)
+        self.assertGreater(combatant.ac, 0)
+
+    def test_from_candidate_with_count_index(self):
+        combatant = combat_runner.CombatantState.from_candidate(
+            {"name": "Wolf", "xp": 50, "cr": "1/4"}, count_index=2
+        )
+        self.assertEqual(combatant.name, "Wolf #2")
+
+    def test_run_encounter_victory_flow(self):
+        weak_enemy = combat_runner.CombatantState(
+            name="Goblin",
+            current_hp=1,
+            max_hp=1,
+            ac=5,
+            attack_modifier=0,
+            damage_dice_count=1,
+            damage_die_sides=4,
+            damage_modifier=0,
+            xp=50,
+        )
+        res = combat_runner.run_encounter([self.pc], [weak_enemy])
+        self.assertEqual(res["outcome"], "victory")
+        self.assertEqual(res["xp_awarded"], 50)
+        self.assertGreaterEqual(res["rounds"], 1)
+        self.assertTrue(len(res["game_events"]) >= 1)
+        self.assertEqual(res["game_events"][0]["schema"], "gpf/game-event.v1")
+        self.assertEqual(weak_enemy.current_hp, 0)
+
+    def test_run_encounter_mercy_rule(self):
+        frail_pc = combat_runner.CombatantState(
+            name="Frail Squire",
+            current_hp=1,
+            max_hp=1,
+            ac=5,
+            attack_modifier=0,
+            damage_dice_count=1,
+            damage_die_sides=4,
+            damage_modifier=0,
+        )
+        boss = combat_runner.CombatantState(
+            name="Dragon",
+            current_hp=200,
+            max_hp=200,
+            ac=25,
+            attack_modifier=15,
+            damage_dice_count=4,
+            damage_die_sides=10,
+            damage_modifier=10,
+            xp=5000,
+        )
+        res = combat_runner.run_encounter([frail_pc], [boss])
+        self.assertEqual(res["outcome"], "mercy_rule")
+        self.assertEqual(res["xp_awarded"], 0)
+        self.assertIn("Mercy rule", res["narrative"])
+
+    def test_run_generated_encounter_e2e(self):
+        candidates = [
+            CreatureCandidate("Goblin", 50, "1/4"),
+            CreatureCandidate("Orc", 100, "1/2"),
+        ]
+        res = combat_runner.run_generated_encounter(
+            [self.pc],
+            candidates,
+            Difficulty.EASY,
+            seed=42,
+        )
+        self.assertIn("encounter", res)
+        self.assertEqual(res["encounter"]["version"], "gpf/encounter.v1")
+        self.assertIn(res["outcome"], {"victory", "mercy_rule", "stalemate"})
+        self.assertIn("game_events", res)
+
+    def test_helpers_cr_and_damage_type_parsing(self):
+        self.assertEqual(combat_runner._parse_cr("1/4"), 0.25)
+        self.assertEqual(combat_runner._parse_cr("1/8"), 0.125)
+        self.assertEqual(combat_runner._parse_cr("2"), 2.0)
+        self.assertEqual(combat_runner._parse_cr(3), 3.0)
+        self.assertEqual(combat_runner._parse_cr("invalid"), 0.0)
+
+        self.assertEqual(combat_runner._parse_damage_type("piercing"), DamageType.PIERCING)
+        self.assertEqual(combat_runner._parse_damage_type(DamageType.FIRE), DamageType.FIRE)
+        self.assertEqual(combat_runner._parse_damage_type("unknown"), DamageType.SLASHING)
+
+    def test_empty_encounter_validation(self):
+        with self.assertRaises(ValueError):
+            combat_runner.run_encounter([], [self.pc])
+        with self.assertRaises(ValueError):
+            combat_runner.run_encounter([self.pc], [])
+        with self.assertRaises(ValueError):
+            combat_runner.run_generated_encounter([], [CreatureCandidate("Orc", 100)])
 
 
 if __name__ == "__main__":
