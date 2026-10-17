@@ -1,74 +1,71 @@
 # AI Dungeon Master
 
-A dependency-free D20 game foundation, with an original branching-fantasy
-starter scenario and explicit export adapters for two separate projects:
+[![Release](https://img.shields.io/github/v/release/RemyLoveLogicAI/ai-dungeon-master)](https://github.com/RemyLoveLogicAI/ai-dungeon-master/releases)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
+[![License](https://img.shields.io/github/license/RemyLoveLogicAI/ai-dungeon-master)](LICENSE)
+[![CI](https://github.com/RemyLoveLogicAI/ai-dungeon-master/actions/workflows/ci.yml/badge.svg)](https://github.com/RemyLoveLogicAI/ai-dungeon-master/actions/workflows/ci.yml)
 
-- **`d20_rules.py`** — D20 attack resolution: advantage/disadvantage, natural 1/20,
-  critical damage, damage types, and injectable dice sources (module-random
-  default, seeded, scripted, and recording).
-- **`combat_events.py`** — replayable `combat-attack-event/1` records: each attack
-  captures its request and die results, and replays to an identical resolution.
-- **`combat_log.py`** — the versioned `combat-encounter-log/1` envelope: strict
-  validation at the boundary, one-version-at-a-time migration, bounded retention,
-  and size-guarded save/load.
-- **`combat_schema.py`** — validation against
-  `schemas/combat-encounter-log-1.schema.json`, a published JSON Schema any
-  consumer can apply without this package. Needs the optional `jsonschema`
-  extra, and fails loudly rather than skipping a requested check without it.
-- **`encounter_ai.py`** — stance-based enemy combat AI whose turn choice is a
-  pure query: a decision reports its slot cost and the caller commits it.
-- **`audio_synth.py`** — procedural sound effects written directly to 16-bit WAV,
-  drawn from a private generator so audio never perturbs a simulated roll.
-- **`combat_runner.py`** — runnable combat demonstration that logs and replays
-  each attack.
-- **`game_foundation.py`** — domain-neutral scene/choice scenario model, an
-  immutable in-memory session with an append-only choice-event log, the
-  `mcp-games-game-definition/1` / `agentsurface-blueprint/0.1` adapters, and
-  `validate_agentsurface_v01` — the one definition of the v0.1 contract.
-- **`genui.py`** — declarative `SurfaceBlueprint` factory plus an ANSI terminal
-  renderer (tactical grid, health meters, action-economy badges, intent buttons).
-  Both it and the scenario adapter export the same validated v0.1 envelope.
-- **`tui_runner.py`** — a runnable encounter that draws the generative terminal
-  surface round by round, triggers procedural audio synthesis, commits every
-  attack to a durable log, and can resume a saved encounter.
-- **`web/`** — a dependency-free browser client that renders the *same* validated
-  `agentsurface-blueprint/0.1` envelope the engine exports. It holds no game
-  logic: it draws components and routes intents. `web/build_demo.py` generates
-  its data from the real modules, and `test_web_demo.py` keeps that artifact in
-  sync with the code.
+![AI Dungeon Master demo: encounter and intent submission](docs/demo.gif)
 
-The adapters produce JSON-compatible contract payloads; they do **not** connect
-to remote repositories, start MCP servers, or call a model provider. A combat
-log can be written to a local JSON file on request, but nothing schedules,
-replicates, or deletes that data, and campaign/session persistence is not owned
-here. The combat engine remains usable independently of the narrative
-foundation. See [Architecture](docs/architecture.md),
-[Integrations](docs/integrations.md), and the [roadmap](docs/roadmap.md).
+**[Try it locally](#try-the-browser-demo)** · **[Install and run](#install-and-run)** ·
+**[Source](https://github.com/RemyLoveLogicAI/ai-dungeon-master)**
 
-## Try it
+A small, dependency-free Python foundation for deterministic D20 combat and
+branching fantasy encounters. Simulate a fight, export a validated surface
+blueprint, and hand it to an agent without giving the renderer executable game
+logic.
 
-### In a browser (no install)
+## What is included
 
-The client under `web/` renders the validated `agentsurface-blueprint/0.1`
-envelope straight from the engine — the same contract the terminal surface
-exports — and reimplements none of the rules: it draws components and routes
-intents.
+- Deterministic D20 combat with seeded and scripted dice sources.
+- Replayable attack events and versioned, validated encounter logs.
+- A domain-neutral branching-scene model with MCP Games and AgentSurface JSON
+  exporters.
+- A stance-based enemy AI, procedural audio, terminal encounter UI, and a static
+  browser demo.
+
+## Install and run
+
+After the first PyPI release, run the packaged demo with `uvx` (Python 3.10+):
 
 ```bash
-git clone https://github.com/RemyLoveLogicAI/ai-dungeon-master.git
-cd ai-dungeon-master
-python web/build_demo.py             # regenerate web/demo-data.json from the engine
-python -m http.server 8765 --directory web
+uvx ai-dungeon-master
+```
+
+## Try the browser demo
+
+The intended public URL is [GitHub Pages](https://remylovelogicai.github.io/ai-dungeon-master/).
+It currently returns 404 because Pages is not enabled for this repository.
+Enable **Settings → Pages → Build and deployment → Source: GitHub Actions**,
+then push to `main`. Until then, use the local prototype:
+
+```bash
+uv run python web/build_demo.py
+uv run python -m http.server 8765 --directory web
 # open http://127.0.0.1:8765/
 ```
 
-`#scene=<id>` and `#encounter` deep-link a specific surface. The page is static
-and has no runtime dependency; `.github/workflows/pages.yml` publishes it to
-GitHub Pages on a push to `main` (select **Settings → Pages → Source: GitHub
-Actions** once). It is a disposable local client, not the production
-AgentSurface renderer — see [Architecture](docs/architecture.md).
+`#scene=<id>` and `#encounter` open individual views. The browser client is an
+experimental, local-only prototype; it renders a supported subset of the DSL
+using safe text APIs and returns submitted intents as visible, copyable JSON
+envelopes. It does not execute combat actions or provide a hosted gameplay
+session.
 
-### From the command line
+## Experimental AgentSurface handoff
+
+The Python exporters emit the AgentSurface DSL v0.1 blueprint. In an agent
+workflow, the agent can pass that JSON to AgentSurface's `validate_blueprint`
+and `render_surface` MCP tools. The HTML returned by the renderer is
+self-contained and ephemeral; closing it discards the surface. Button intents
+return as copyable envelopes for the agent to interpret. This repository adds
+no AgentSurface MCP client, live transport, persistence, or production host.
+
+The rest of the package remains usable independently: simulation, scenario
+adapters, replayable combat events, validated logs, and terminal output run
+locally without a model provider. See [Architecture](docs/architecture.md),
+[Integrations](docs/integrations.md), and the [roadmap](docs/roadmap.md).
+
+## From the command line
 
 Run the combat demo:
 
@@ -184,12 +181,10 @@ game_definition = to_mcp_games_v1(STARTER_SCENARIO)
 surface_blueprint = to_agentsurface_v01(STARTER_SCENARIO)
 ```
 
-The D&D-facing examples are original, system-neutral fantasy content, not
-reproductions of proprietary rulebooks. The `genui.py`/`tui_runner.py` terminal
-surface is a local, disposable client, not the production renderer: the
-ephemeral UI blueprint and its browser renderer remain owned by the separate
-`agentsurface` project. The current combat implementation is not a complete
-D&D 5e ruleset. See the SRD licensing boundary and provenance source in
+The D20 examples use original, system-neutral fantasy content; this is not a
+complete D&D 5e ruleset. The terminal UI is a local client. The `web/` page is a
+separate local prototype, not the AgentSurface renderer or a hosted combat
+service. See the SRD licensing boundary and provenance source in
 [Architecture](docs/architecture.md).
 
 ## Development
@@ -217,10 +212,12 @@ schema.
   `pyproject.toml`, Ruff lints, pytest runs under the total coverage gate on
   every supported Python version, the per-module floors are enforced on one
   pinned interpreter, and a build job installs the wheel into a throwaway venv
-  and runs both entry points.
+  and runs the documented `ai-dungeon-master` command plus the two legacy
+  console entry points.
 - **Release** ([release.yml](.github/workflows/release.yml)): a version tag
-  re-runs the tests, builds the package, smoke-tests the wheel the same way -
-  both entry points, the shipped licence metadata, and the published schema
-  resolving from the installed package - and only then publishes it.
+  builds and smoke-tests distributions once; the GitHub Release still receives
+  those artifacts after the build, independently of PyPI availability. A
+  separate OIDC chain publishes to TestPyPI, then PyPI only after TestPyPI
+  succeeds. Configure PyPI trusted publishers for the `testpypi` and `pypi`
+  environments before publishing.
 
-[![CI](https://github.com/RemyLoveLogicAI/ai-dungeon-master/actions/workflows/ci.yml/badge.svg)](https://github.com/RemyLoveLogicAI/ai-dungeon-master/actions/workflows/ci.yml)

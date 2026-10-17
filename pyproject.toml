@@ -45,6 +45,7 @@ Documentation = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/blob/main/
 Issues = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/issues"
 
 [project.scripts]
+ai-dungeon-master = "combat_runner:run_simulated_encounter"
 dungeon-master = "combat_runner:run_simulated_encounter"
 dungeon-master-tui = "tui_runner:main"
 
