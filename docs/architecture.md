@@ -112,8 +112,12 @@ what a fresh replay produces, so tampering and corruption are both detectable.
 
 `tui_runner.py` carries the same envelope into an interactive session. Every
 attack it resolves is committed with `record_entry`, and the log is rewritten at
-the end of each round, so a run that stops - a crash, a closed terminal - is
-resumable from the last completed round. `--resume` reads the file back through
+the end of each round using a flushed, file-synced sibling and atomic
+replacement. A process interruption leaves the last successfully replaced
+checkpoint resumable, rather than truncating it during the next save. Before
+the first successful save there is no checkpoint. Parent-directory syncing is
+attempted on POSIX where supported; power-loss guarantees depend on the storage
+platform (see the README persistence notes). `--resume` reads the file back through
 the strict boundary, refuses a log that does not replay from its own recorded
 dice, refuses a log from a different encounter or one that already ended, and
 rebuilds the state the log describes: hit points, distance, the next round, and
