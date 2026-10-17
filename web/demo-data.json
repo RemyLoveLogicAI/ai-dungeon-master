@@ -39,19 +39,20 @@
           ],
           "id": "root",
           "props": {
-            "maxWidth": "960px",
-            "padding": "24px"
+            "direction": "column",
+            "gap": "16"
           },
-          "type": "Surface"
+          "type": "Stack"
         },
         {
           "children": [
+            "header-card-title",
+            "header-card-badge",
             "header-row"
           ],
           "id": "header-card",
           "props": {
-            "badge": "Round 8",
-            "title": "Tactical Arena"
+            "padding": "16"
           },
           "type": "Card"
         },
@@ -62,28 +63,29 @@
           ],
           "id": "header-row",
           "props": {
+            "direction": "row",
             "gap": "16px"
           },
-          "type": "Row"
+          "type": "Stack"
         },
         {
+          "children": [
+            "metric-tension-trend"
+          ],
           "id": "metric-tension",
           "props": {
             "label": "Tension Index",
-            "trend": "CRITICAL",
-            "value": "77%",
-            "variant": "danger"
+            "value": "77%"
           },
-          "type": "Metric"
+          "type": "Stat"
         },
         {
           "id": "metric-stance",
           "props": {
             "label": "Enemy Stance",
-            "value": "Fleeing",
-            "variant": "accent"
+            "value": "Fleeing"
           },
-          "type": "Metric"
+          "type": "Stat"
         },
         {
           "children": [
@@ -92,9 +94,10 @@
           ],
           "id": "main-split",
           "props": {
+            "direction": "row",
             "gap": "20px"
           },
-          "type": "Row"
+          "type": "Stack"
         },
         {
           "children": [
@@ -103,9 +106,10 @@
           ],
           "id": "left-col",
           "props": {
-            "flex": "3"
+            "direction": "column",
+            "gap": "12"
           },
-          "type": "Column"
+          "type": "Stack"
         },
         {
           "children": [
@@ -115,53 +119,58 @@
           ],
           "id": "right-col",
           "props": {
-            "flex": "2"
+            "direction": "column",
+            "gap": "12"
           },
-          "type": "Column"
+          "type": "Stack"
         },
         {
           "children": [
+            "tactical-card-title",
             "tactical-grid"
           ],
           "id": "tactical-card",
           "props": {
-            "title": "Tactical Arena"
+            "padding": "16"
           },
           "type": "Card"
         },
         {
           "id": "tactical-grid",
           "props": {
-            "covers": [
-              [
-                5,
-                2
-              ],
-              [
-                5,
-                3
-              ],
-              [
-                6,
-                4
-              ]
+            "columns": [
+              {
+                "key": "row",
+                "label": "Dim Light (Cavern)"
+              }
             ],
-            "enemyPos": [
-              9,
-              3
-            ],
-            "gridHeight": 6,
-            "gridWidth": 12,
-            "heroPos": [
-              2,
-              3
-            ],
-            "lighting": "Dim Light (Cavern)"
+            "dense": true,
+            "rows": [
+              {
+                "row": "\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7"
+              },
+              {
+                "row": "\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7"
+              },
+              {
+                "row": "\u00b7\u00b7\u00b7\u00b7\u00b7#\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7"
+              },
+              {
+                "row": "\u00b7\u00b7@\u00b7\u00b7#\u00b7\u00b7\u00b7G\u00b7\u00b7"
+              },
+              {
+                "row": "\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7#\u00b7\u00b7\u00b7\u00b7\u00b7"
+              },
+              {
+                "row": "\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7\u00b7"
+              }
+            ]
           },
-          "type": "TacticalGrid"
+          "type": "Table"
         },
         {
           "children": [
+            "feed-card-title",
             "log-entry-0",
             "log-entry-1",
             "log-entry-2",
@@ -169,60 +178,56 @@
           ],
           "id": "feed-card",
           "props": {
-            "title": "Chronicle Feed"
+            "padding": "16"
           },
           "type": "Card"
         },
         {
           "id": "log-entry-0",
           "props": {
-            "content": "Shadow Gargoyle readies a defensive stance.",
-            "variant": "caption"
+            "text": "Shadow Gargoyle readies a defensive stance."
           },
           "type": "Text"
         },
         {
           "id": "log-entry-1",
           "props": {
-            "content": "Round 8 \u2014 distance 1.0m \u2014 Shadow Gargoyle is Defensive.",
-            "variant": "caption"
+            "text": "Round 8 \u2014 distance 1.0m \u2014 Shadow Gargoyle is Defensive."
           },
           "type": "Text"
         },
         {
           "id": "log-entry-2",
           "props": {
-            "content": "[HIT] Paladin Alden attacks Shadow Gargoyle: Rolled 18+5=23 vs AC 14 -> Deals 8 Slashing damage.",
-            "variant": "caption"
+            "text": "[HIT] Paladin Alden attacks Shadow Gargoyle: Rolled 18+5=23 vs AC 14 -> Deals 8 Slashing damage."
           },
           "type": "Text"
         },
         {
           "id": "log-entry-3",
           "props": {
-            "content": "Shadow Gargoyle breaks engagement and flees into the shadows.",
-            "variant": "body"
+            "text": "Shadow Gargoyle breaks engagement and flees into the shadows."
           },
           "type": "Text"
         },
         {
           "children": [
+            "hero-card-title",
             "hero-hp-bar",
             "economy-row"
           ],
           "id": "hero-card",
           "props": {
-            "title": "Hero: Paladin Alden"
+            "padding": "16"
           },
           "type": "Card"
         },
         {
           "id": "hero-hp-bar",
           "props": {
-            "current": 13,
-            "label": "Hit Points",
+            "label": "Hit Points (13 / 38 HP)",
             "max": 38,
-            "unit": "HP"
+            "value": 13
           },
           "type": "ProgressBar"
         },
@@ -234,57 +239,58 @@
           ],
           "id": "economy-row",
           "props": {
-            "gap": "8px",
-            "marginTop": "10px"
+            "direction": "row",
+            "gap": "8px"
           },
-          "type": "Row"
+          "type": "Stack"
         },
         {
           "id": "eco-Action",
           "props": {
-            "label": "Action",
-            "variant": "success"
+            "text": "Action",
+            "tone": "accent"
           },
           "type": "Badge"
         },
         {
           "id": "eco-Bonus Action",
           "props": {
-            "label": "Bonus Action",
-            "variant": "success"
+            "text": "Bonus Action",
+            "tone": "accent"
           },
           "type": "Badge"
         },
         {
           "id": "eco-Reaction",
           "props": {
-            "label": "Reaction",
-            "variant": "neutral"
+            "text": "Reaction",
+            "tone": "default"
           },
           "type": "Badge"
         },
         {
           "children": [
+            "enemy-card-title",
             "enemy-hp-bar"
           ],
           "id": "enemy-card",
           "props": {
-            "title": "Adversary: Shadow Gargoyle"
+            "padding": "16"
           },
           "type": "Card"
         },
         {
           "id": "enemy-hp-bar",
           "props": {
-            "current": 4,
-            "label": "Threat Integrity",
+            "label": "Threat Integrity (4 / 35 HP)",
             "max": 35,
-            "unit": "HP"
+            "value": 4
           },
           "type": "ProgressBar"
         },
         {
           "children": [
+            "action-card-title",
             "btn-attack",
             "btn-dodge",
             "btn-spell",
@@ -292,7 +298,7 @@
           ],
           "id": "action-card",
           "props": {
-            "title": "Action Matrix"
+            "padding": "16"
           },
           "type": "Card"
         },
@@ -306,7 +312,6 @@
                 "btn-attack.target"
               ]
             },
-            "enabled": true,
             "label": "\u2694\ufe0f Attack (Action)"
           },
           "type": "Button"
@@ -318,7 +323,6 @@
               "intent": "HERO_DODGE",
               "payloadKeys": []
             },
-            "enabled": true,
             "label": "\ud83d\udee1\ufe0f Dodge (Action)"
           },
           "type": "Button"
@@ -333,7 +337,6 @@
                 "btn-spell.target"
               ]
             },
-            "enabled": true,
             "label": "\ud83d\udd25 Cast Spell (Action)"
           },
           "type": "Button"
@@ -347,10 +350,73 @@
                 "btn-rest.type"
               ]
             },
-            "enabled": true,
             "label": "\ud83c\udfd5\ufe0f Short Rest"
           },
           "type": "Button"
+        },
+        {
+          "id": "header-card-title",
+          "props": {
+            "level": 3,
+            "text": "Tactical Arena"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "header-card-badge",
+          "props": {
+            "text": "Round 8",
+            "tone": "accent"
+          },
+          "type": "Badge"
+        },
+        {
+          "id": "metric-tension-trend",
+          "props": {
+            "text": "CRITICAL",
+            "tone": "warn"
+          },
+          "type": "Badge"
+        },
+        {
+          "id": "tactical-card-title",
+          "props": {
+            "level": 3,
+            "text": "Tactical Arena"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "feed-card-title",
+          "props": {
+            "level": 3,
+            "text": "Chronicle Feed"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "hero-card-title",
+          "props": {
+            "level": 3,
+            "text": "Hero: Paladin Alden"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "enemy-card-title",
+          "props": {
+            "level": 3,
+            "text": "Adversary: Shadow Gargoyle"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "action-card-title",
+          "props": {
+            "level": 3,
+            "text": "Action Matrix"
+          },
+          "type": "Heading"
         }
       ],
       "dataModel": {
@@ -375,6 +441,600 @@
     }
   },
   "generator": "web/build_demo.py",
+  "investigation": {
+    "surface": {
+      "components": [
+        {
+          "children": [
+            "scene-card",
+            "main-split"
+          ],
+          "id": "root",
+          "props": {
+            "direction": "column",
+            "gap": "16"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "scene-card-title",
+            "scene-card-badge",
+            "scene-narration"
+          ],
+          "id": "scene-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "scene-narration",
+          "props": {
+            "text": "Open to the cold night air, the shattered dome of the observatory frames the stars. At the center rests a massive brass telescope adorned with interlocking rings. The celestial mechanism sits dormant, waiting for its dials to be properly aligned."
+          },
+          "type": "Text"
+        },
+        {
+          "children": [
+            "left-col",
+            "right-col"
+          ],
+          "id": "main-split",
+          "props": {
+            "direction": "row",
+            "gap": "20px"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "clues-card",
+            "apparatus-card"
+          ],
+          "id": "left-col",
+          "props": {
+            "direction": "column",
+            "gap": "12"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "actions-card"
+          ],
+          "id": "right-col",
+          "props": {
+            "direction": "column",
+            "gap": "12"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "clues-card-title",
+            "clue-1",
+            "clue-2",
+            "clue-3"
+          ],
+          "id": "clues-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "clue-1",
+          "props": {
+            "text": "\u2022 Ancient astrolabe lenses are cracked but functional."
+          },
+          "type": "Text"
+        },
+        {
+          "id": "clue-2",
+          "props": {
+            "text": "\u2022 Brass rings bear celestial glyphs corresponding to the lunar equinox."
+          },
+          "type": "Text"
+        },
+        {
+          "id": "clue-3",
+          "props": {
+            "text": "\u2022 A faint arcane hum emanates from the central focusing crystal."
+          },
+          "type": "Text"
+        },
+        {
+          "children": [
+            "apparatus-card-title",
+            "status-row"
+          ],
+          "id": "apparatus-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "children": [
+            "stat-state",
+            "stat-target"
+          ],
+          "id": "status-row",
+          "props": {
+            "direction": "row",
+            "gap": "16px"
+          },
+          "type": "Stack"
+        },
+        {
+          "id": "stat-state",
+          "props": {
+            "label": "Apparatus Status",
+            "value": "Dials Misaligned (3 of 4 Locked)"
+          },
+          "type": "Stat"
+        },
+        {
+          "id": "stat-target",
+          "props": {
+            "label": "Target Alignment",
+            "value": "Constellation of the Silver Dragon"
+          },
+          "type": "Stat"
+        },
+        {
+          "children": [
+            "actions-card-title",
+            "btn-examine",
+            "btn-align",
+            "btn-cast-light",
+            "btn-return"
+          ],
+          "id": "actions-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "btn-examine",
+          "props": {
+            "action": {
+              "intent": "INVESTIGATE_APPARATUS",
+              "payloadKeys": [
+                "btn-examine.skill",
+                "btn-examine.target"
+              ]
+            },
+            "label": "\ud83d\udd0d Arcana Check: Decipher Glyphs"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-align",
+          "props": {
+            "action": {
+              "intent": "ALIGN_CELESTIAL_DIAL",
+              "payloadKeys": [
+                "btn-align.ring",
+                "btn-align.constellation"
+              ]
+            },
+            "label": "\u2699\ufe0f Rotate Brass Ring (Dragon Constellation)"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-cast-light",
+          "props": {
+            "action": {
+              "intent": "CHANNEL_ARCANA",
+              "payloadKeys": [
+                "btn-cast-light.spell",
+                "btn-cast-light.target"
+              ]
+            },
+            "label": "\u2728 Channel Arcane Spark into Lens"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-return",
+          "props": {
+            "action": {
+              "intent": "NAVIGATE_SCENE",
+              "payloadKeys": [
+                "btn-return.targetScene"
+              ]
+            },
+            "label": "\ud83d\udd19 Return to Spire Courtyard"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "scene-card-title",
+          "props": {
+            "level": 3,
+            "text": "Location: Moonrise Spire, Upper Terrace"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "scene-card-badge",
+          "props": {
+            "text": "Moonlit (Dim Light)",
+            "tone": "accent"
+          },
+          "type": "Badge"
+        },
+        {
+          "id": "clues-card-title",
+          "props": {
+            "level": 3,
+            "text": "Perception & Investigation Clues"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "apparatus-card-title",
+          "props": {
+            "level": 3,
+            "text": "Apparatus Diagnostics"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "actions-card-title",
+          "props": {
+            "level": 3,
+            "text": "Interactive Workspace: Telescope Controls"
+          },
+          "type": "Heading"
+        }
+      ],
+      "dataModel": {
+        "btn-align.constellation": "Silver Dragon",
+        "btn-align.ring": "Outer Ring",
+        "btn-cast-light.spell": "Light / Prestidigitation",
+        "btn-cast-light.target": "Focusing Crystal",
+        "btn-examine.skill": "Arcana",
+        "btn-examine.target": "Celestial Glyphs",
+        "btn-return.targetScene": "crypt_entrance"
+      },
+      "intents": [
+        "INVESTIGATE_APPARATUS",
+        "ALIGN_CELESTIAL_DIAL",
+        "CHANNEL_ARCANA",
+        "NAVIGATE_SCENE"
+      ],
+      "surface": {
+        "id": "ruined-observatory",
+        "subtitle": "Level 2 Custom Interaction: Celestial Apparatus Investigation",
+        "title": "The Ruined Celestial Observatory",
+        "width": "wide"
+      }
+    }
+  },
+  "onboarding": {
+    "surface": {
+      "components": [
+        {
+          "children": [
+            "welcome-card",
+            "main-split"
+          ],
+          "id": "root",
+          "props": {
+            "direction": "column",
+            "gap": "16"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "welcome-card-title",
+            "welcome-text",
+            "calibration-row"
+          ],
+          "id": "welcome-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "welcome-text",
+          "props": {
+            "text": "Welcome to the table! I'm your AI Dungeon Master. I'll bring the world and its people to life, referee the rules, and describe what happens when you act\u2014while you decide what your character attempts. Let's calibrate your experience and draft your starting hero."
+          },
+          "type": "Text"
+        },
+        {
+          "children": [
+            "badge-familiarity",
+            "badge-guidance",
+            "badge-edition"
+          ],
+          "id": "calibration-row",
+          "props": {
+            "direction": "row",
+            "gap": "10px"
+          },
+          "type": "Stack"
+        },
+        {
+          "id": "badge-familiarity",
+          "props": {
+            "text": "Familiarity: Beginner (New to D&D)",
+            "tone": "default"
+          },
+          "type": "Badge"
+        },
+        {
+          "id": "badge-guidance",
+          "props": {
+            "text": "Guidance: Full Guidance",
+            "tone": "accent"
+          },
+          "type": "Badge"
+        },
+        {
+          "id": "badge-edition",
+          "props": {
+            "text": "Rules: D&D 5th Edition (Revised 2024)",
+            "tone": "warn"
+          },
+          "type": "Badge"
+        },
+        {
+          "children": [
+            "left-col",
+            "right-col"
+          ],
+          "id": "main-split",
+          "props": {
+            "direction": "row",
+            "gap": "20px"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "draft-card"
+          ],
+          "id": "left-col",
+          "props": {
+            "direction": "column",
+            "gap": "12"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "action-card"
+          ],
+          "id": "right-col",
+          "props": {
+            "direction": "column",
+            "gap": "12"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "draft-card-title",
+            "draft-summary",
+            "abilities-row",
+            "vitals-row"
+          ],
+          "id": "draft-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "draft-summary",
+          "props": {
+            "text": "Level 1 Human Fighter \u00b7 Background: Soldier \u00b7 Origin Feat: Savage Attacker \u00b7 Mastery: Longsword (Sap / Flex)"
+          },
+          "type": "Text"
+        },
+        {
+          "children": [
+            "stat-str",
+            "stat-dex",
+            "stat-con",
+            "stat-int",
+            "stat-wis",
+            "stat-cha"
+          ],
+          "id": "abilities-row",
+          "props": {
+            "direction": "row",
+            "gap": "12px"
+          },
+          "type": "Stack"
+        },
+        {
+          "id": "stat-str",
+          "props": {
+            "label": "STR",
+            "value": "16 (+3)"
+          },
+          "type": "Stat"
+        },
+        {
+          "id": "stat-dex",
+          "props": {
+            "label": "DEX",
+            "value": "13 (+1)"
+          },
+          "type": "Stat"
+        },
+        {
+          "id": "stat-con",
+          "props": {
+            "label": "CON",
+            "value": "15 (+2)"
+          },
+          "type": "Stat"
+        },
+        {
+          "id": "stat-int",
+          "props": {
+            "label": "INT",
+            "value": "10 (+0)"
+          },
+          "type": "Stat"
+        },
+        {
+          "id": "stat-wis",
+          "props": {
+            "label": "WIS",
+            "value": "12 (+1)"
+          },
+          "type": "Stat"
+        },
+        {
+          "id": "stat-cha",
+          "props": {
+            "label": "CHA",
+            "value": "8 (-1)"
+          },
+          "type": "Stat"
+        },
+        {
+          "children": [
+            "draft-hp-bar",
+            "metric-ac"
+          ],
+          "id": "vitals-row",
+          "props": {
+            "direction": "row",
+            "gap": "16px"
+          },
+          "type": "Stack"
+        },
+        {
+          "id": "draft-hp-bar",
+          "props": {
+            "label": "Hit Points (12 / 12 HP)",
+            "max": 12,
+            "value": 12
+          },
+          "type": "ProgressBar"
+        },
+        {
+          "id": "metric-ac",
+          "props": {
+            "label": "Armor Class",
+            "value": "16 (Chain Mail)"
+          },
+          "type": "Stat"
+        },
+        {
+          "children": [
+            "action-card-title",
+            "btn-confirm",
+            "btn-switch-archetype",
+            "btn-adjust-guidance"
+          ],
+          "id": "action-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "btn-confirm",
+          "props": {
+            "action": {
+              "intent": "CONFIRM_CHARACTER_DRAFT",
+              "payloadKeys": [
+                "btn-confirm.characterName",
+                "btn-confirm.archetype",
+                "btn-confirm.edition",
+                "btn-confirm.guidance"
+              ]
+            },
+            "label": "\u2728 Confirm Character & Enter Adventure"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-switch-archetype",
+          "props": {
+            "action": {
+              "intent": "SWITCH_STARTER_ARCHETYPE",
+              "payloadKeys": [
+                "btn-switch-archetype.archetype"
+              ]
+            },
+            "label": "\ud83c\udfb2 Switch to Wizard Archetype"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-adjust-guidance",
+          "props": {
+            "action": {
+              "intent": "ADJUST_GUIDANCE",
+              "payloadKeys": [
+                "btn-adjust-guidance.current"
+              ]
+            },
+            "label": "\u2699\ufe0f Toggle Guidance Level"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "welcome-card-title",
+          "props": {
+            "level": 3,
+            "text": "Table Welcome & DM Introduction"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "draft-card-title",
+          "props": {
+            "level": 3,
+            "text": "Starting Draft: Kaelen Ironheart"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "action-card-title",
+          "props": {
+            "level": 3,
+            "text": "Calibration & Decisions"
+          },
+          "type": "Heading"
+        }
+      ],
+      "dataModel": {
+        "btn-adjust-guidance.current": "Full Guidance",
+        "btn-confirm.archetype": "Fighter",
+        "btn-confirm.characterName": "Kaelen Ironheart",
+        "btn-confirm.edition": "D&D 5th Edition (Revised 2024)",
+        "btn-confirm.guidance": "Full Guidance",
+        "btn-switch-archetype.archetype": "Wizard"
+      },
+      "intents": [
+        "CONFIRM_CHARACTER_DRAFT",
+        "SWITCH_STARTER_ARCHETYPE",
+        "ADJUST_GUIDANCE"
+      ],
+      "surface": {
+        "id": "onboarding-stage-1-2",
+        "subtitle": "Stage 1 & 2: Introduction, Calibration & Character Draft",
+        "title": "Meet Your Dungeon Master",
+        "width": "wide"
+      }
+    }
+  },
   "scenario": {
     "author": "AI Dungeon Master contributors",
     "description": "An original D20-fantasy branching scenario for exercising the game-session and export contracts.",
@@ -463,7 +1123,7 @@
             }
           ],
           "dataModel": {
-            "choice_id": "follow_the_bell"
+            "choice_id": ""
           },
           "intents": [
             "choose"
@@ -651,7 +1311,7 @@
             }
           ],
           "dataModel": {
-            "choice_id": "relight_the_lantern"
+            "choice_id": ""
           },
           "intents": [
             "choose"
@@ -751,7 +1411,7 @@
             }
           ],
           "dataModel": {
-            "choice_id": "share_supplies"
+            "choice_id": ""
           },
           "intents": [
             "choose"

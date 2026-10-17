@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Aegis Dungeon Master</string>
+    <string name="title_activity_main">Aegis Dungeon Master</string>
+    <string name="package_name">com.aegis.dungeonmaster</string>
+    <string name="custom_url_scheme">com.aegis.dungeonmaster</string>
+</resources>

@@ -85,15 +85,15 @@ jobs:
           enable-cache: true
       - name: Build distributions
         run: uv build
-      # Installing the wheel into a throwaway venv is the only check that the
-      # packaged artifact, and not just the checkout, actually works. Both
-      # entry points are run, and the shipped licence metadata is asserted, so a
-      # packaging regression fails here rather than at the release tag.
-      - name: Smoke-test the wheel (entry points + licence metadata)
+      # Installing the wheel into a throwaway venv verifies the package artifact,
+      # not just the checkout. All console scripts run, and licence metadata is
+      # asserted so a packaging regression fails here before release.
+      - name: Smoke-test the wheel (console scripts + licence metadata)
         run: |
           VENV="$RUNNER_TEMP/wheel-venv"
           uv venv "$VENV" --python 3.12
           uv pip install --python "$VENV/bin/python" dist/*.whl
+          "$VENV/bin/ai-dungeon-master" | tail -3
           "$VENV/bin/dungeon-master" | tail -3
           "$VENV/bin/dungeon-master-tui" | tail -1
           "$VENV/bin/python" - <<'PY'

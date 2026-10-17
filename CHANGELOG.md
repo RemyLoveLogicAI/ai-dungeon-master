@@ -8,10 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Experimental AgentSurface DSL v0.1 encounter export with strict component
+  and property whitelists, plus a local demo that returns copyable intent
+  envelopes without executing combat actions.
+- `uvx ai-dungeon-master` entry point and tagged release workflow that publishes
+  the same tested distributions to TestPyPI and PyPI through OIDC.
 
 - `py.typed` marker so type checkers consume the package's inline annotations.
 - `CONTRIBUTING.md`, `SECURITY.md`, a pull-request template, and Dependabot
   configuration.
+- Feature PRD, release traceability, and 1.0 MVP validation templates and gates.
+
+- `encounter_generator.py`: seeded XP-budget encounter selection from caller-provided
+  creature candidates, preserving arbitrary facets in the `gpf/encounter.v1`
+  payload. No creature catalog is bundled.
+- `combat_runner.py`: `CombatantState`, `run_encounter`, and `run_generated_encounter`
+  implementing the 5-stat combatant block, mercy-rule narrative intervention, and
+  `gpf/game-event.v1` event stream per `CORE-GAME-LOOP-SPEC.md`.
 
 ### Fixed
 

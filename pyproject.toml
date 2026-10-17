@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "ai-dungeon-master"
 version = "0.1.0"
-description = "Self-contained D20 tactical combat engine with a stance-based encounter AI and procedural audio, in pure stdlib Python."
+description = "Self-contained D20 tactical combat engine with stance AI, procedural audio, generative UI, and multi-surface DM experience."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -29,7 +29,13 @@ classifiers = [
   "Topic :: Games/Entertainment :: Role-Playing",
   "Topic :: Multimedia :: Sound/Audio :: Sound Synthesis",
 ]
-dependencies = []
+dependencies = [
+  "fastapi>=0.143.0",
+  "httpx>=0.28.1",
+  "pydantic>=2.14.1",
+  "uvicorn>=0.54.0",
+  "websockets>=16.1.1",
+]
 
 [project.optional-dependencies]
 # Optional, and only for schema validation: the engine itself runs on stdlib alone.
@@ -45,14 +51,17 @@ Documentation = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/blob/main/
 Issues = "https://github.com/RemyLoveLogicAI/ai-dungeon-master/issues"
 
 [project.scripts]
+ai-dungeon-master = "combat_runner:run_simulated_encounter"
 dungeon-master = "combat_runner:run_simulated_encounter"
 dungeon-master-tui = "tui_runner:main"
+dm-desktop = "desktop_launcher:main"
+dm-tui = "engine.dm_tui:run_tui"
 
 [dependency-groups]
 dev = ["pytest>=8", "pytest-cov>=6", "hypothesis>=6", "jsonschema>=4.18", "ruff>=0.14", "mypy>=1.11"]
 
 [tool.hatch.build.targets.wheel]
-only-include = ["combat_runner.py", "combat_events.py", "combat_log.py", "combat_schema.py", "d20_rules.py", "encounter_ai.py", "audio_synth.py", "game_foundation.py", "genui.py", "tui_runner.py", "schemas/combat-encounter-log-1.schema.json", "py.typed"]
+only-include = ["combat_runner.py", "combat_events.py", "combat_log.py", "combat_schema.py", "d20_rules.py", "encounter_ai.py", "encounter_generator.py", "audio_synth.py", "game_foundation.py", "genui.py", "tui_runner.py", "desktop_launcher.py", "engine", "schemas/combat-encounter-log-1.schema.json", "py.typed"]
 sources = ["."]
 
 [tool.ruff]
@@ -70,6 +79,7 @@ files = [
   "combat_log.py",
   "combat_schema.py",
   "encounter_ai.py",
+  "encounter_generator.py",
   "audio_synth.py",
   "game_foundation.py",
   "genui.py",

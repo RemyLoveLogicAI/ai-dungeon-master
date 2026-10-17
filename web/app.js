@@ -17,14 +17,38 @@
   "use strict";
 
   const SUPPORTED_TYPES = [
-    // narrative vocabulary (game_foundation adapter)
-    "Surface", "Stack", "Heading", "Text", "Select", "Button",
-    // tactical vocabulary (genui exporter)
-    "Card", "Row", "Column", "Metric", "Badge", "ProgressBar",
-    "TacticalGrid", "DiceTray",
+    "Stack", "Card", "Heading", "Text", "Stat", "Badge",
+    "ProgressBar", "Table", "Select", "Button",
   ];
 
-  const state = { data: null, sceneId: null, view: "story" };
+  const state = {
+    data: null,
+    sceneId: null,
+    view: "onboarding",
+    hero: {
+      name: "Kaelen Ironheart",
+      archetype: "Fighter",
+      species: "Human",
+      background: "Soldier",
+      level: 1,
+      hp: 12,
+      maxHp: 12,
+      ac: 16,
+      edition: "D&D 5th Edition (Revised 2024)",
+      confirmed: false,
+    },
+    journal: [],
+  };
+
+  function updateHeroBadge() {
+    const node = document.getElementById("hero-badge");
+    if (!node) return;
+    if (state.hero.confirmed) {
+      node.textContent = "⚔️ " + state.hero.name + " · " + state.hero.archetype + " (Lv " + state.hero.level + ") · HP " + state.hero.hp + "/" + state.hero.maxHp + " · AC " + state.hero.ac;
+    } else {
+      node.textContent = "Draft: " + state.hero.name + " (" + state.hero.archetype + ")";
+    }
+  }
 
   // ---------------------------------------------------------------- utilities
 
@@ -78,55 +102,35 @@
     const p = component.props || {};
 
     switch (type) {
-      case "Surface": {
-        const node = el("div", "surface");
-        if (p.maxWidth) node.style.maxWidth = p.maxWidth;
-        if (p.padding) node.style.padding = p.padding;
-        return node;
-      }
-      case "Stack":
-      case "Column": {
-        const node = el("div", "stack col");
-        if (p.gap) node.style.gap = p.gap;
-        return node;
-      }
-      case "Row": {
-        const node = el("div", "row");
-        if (p.gap) node.style.gap = p.gap;
-        if (p.marginTop) node.style.marginTop = p.marginTop;
-        if (p.flex) node.style.flex = String(p.flex);
+      case "Stack": {
+        const row = p.direction === "row";
+        const node = el("div", row ? "row" : "stack col");
+        if (p.gap) node.style.gap = /^\d+(\.\d+)?$/.test(p.gap) ? p.gap + "px" : p.gap;
         return node;
       }
       case "Card": {
         const node = el("section", "card");
-        if (p.title) {
-          const head = el("div", "card-head");
-          head.appendChild(el("h3", null, p.title));
-          if (p.badge) head.appendChild(el("span", "chip", p.badge));
-          node.appendChild(head);
-        }
         const body = el("div", "card-body");
         node.appendChild(body);
-        node._body = body; // children are appended here, not after the header
+        node._body = body;
         return node;
       }
       case "Heading": {
         const level = Math.min(3, Math.max(1, Number(p.level) || 2));
         return el("h" + level, "heading", p.text);
       }
-      case "Text": {
-        const variant = p.variant === "caption" ? "muted" : "";
-        return el("p", "text " + variant, p.text !== undefined ? p.text : p.content);
-      }
-      case "Metric": {
-        const node = el("div", "metric metric-" + (p.variant || "neutral"));
+      case "Text":
+        return el("p", "text", p.text);
+      case "Stat": {
+        const node = el("div", "metric");
         node.appendChild(el("span", "metric-label", p.label));
         node.appendChild(el("span", "metric-value", p.value));
-        if (p.trend) node.appendChild(el("span", "metric-trend", p.trend));
+        if (p.unit) node.appendChild(el("span", "metric-trend", p.unit));
         return node;
       }
       case "Badge": {
-        return el("span", "badge badge-" + (p.variant || "neutral"), p.label);
+        const tone = p.tone === "warn" ? "warning" : (p.tone || "default");
+        return el("span", "badge badge-" + tone, p.text);
       }
       case "ProgressBar": {
         const node = el("div", "bar-wrap");
@@ -134,43 +138,36 @@
         const track = el("div", "bar-track");
         const fill = el("div", "bar-fill");
         const max = Number(p.max) || 0;
-        const current = Number(p.current) || 0;
-        const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
+        const value = Number(p.value) || 0;
+        const pct = max > 0 ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
         fill.style.width = pct + "%";
         if (pct > 50) fill.classList.add("bar-good");
         else if (pct > 20) fill.classList.add("bar-warn");
         else fill.classList.add("bar-bad");
         track.appendChild(fill);
         node.appendChild(track);
-        node.appendChild(el("span", "bar-value", current + " / " + max + " " + (p.unit || "")));
+        node.appendChild(el("span", "bar-value", value + " / " + max));
         return node;
       }
-      case "TacticalGrid": {
-        const node = el("div", "grid-wrap");
-        if (p.lighting) node.appendChild(el("div", "grid-caption", p.lighting));
-        const table = el("div", "grid");
-        const w = Number(p.gridWidth) || 10;
-        const h = Number(p.gridHeight) || 6;
-        table.style.gridTemplateColumns = "repeat(" + w + ", 1fr)";
-        const covers = new Set((p.covers || []).map(function (c) { return c[0] + "," + c[1]; }));
-        const hero = (p.heroPos || []).join(",");
-        const enemy = (p.enemyPos || []).join(",");
-        for (let y = 0; y < h; y++) {
-          for (let x = 0; x < w; x++) {
-            const key = x + "," + y;
-            const cell = el("div", "cell");
-            if (key === hero) { cell.classList.add("cell-hero"); cell.textContent = "@"; }
-            else if (key === enemy) { cell.classList.add("cell-enemy"); cell.textContent = "G"; }
-            else if (covers.has(key)) { cell.classList.add("cell-cover"); cell.textContent = "#"; }
-            table.appendChild(cell);
-          }
-        }
-        node.appendChild(table);
-        node.appendChild(el("div", "grid-legend", "@ Hero   G Gargoyle   # Half-cover"));
-        return node;
-      }
-      case "DiceTray": {
-        return el("div", "dice-tray", p.label || "Dice");
+      case "Table": {
+        const table = el("table", "surface-table");
+        const head = el("thead");
+        const headerRow = el("tr");
+        (p.columns || []).forEach(function (column) {
+          headerRow.appendChild(el("th", null, column.label));
+        });
+        head.appendChild(headerRow);
+        table.appendChild(head);
+        const body = el("tbody");
+        (p.rows || []).forEach(function (row) {
+          const tr = el("tr");
+          (p.columns || []).forEach(function (column) {
+            tr.appendChild(el("td", null, row[column.key]));
+          });
+          body.appendChild(tr);
+        });
+        table.appendChild(body);
+        return table;
       }
       case "Select": {
         const node = el("label", "field");
@@ -194,7 +191,6 @@
         const action = p.action || {};
         const node = el("button", "btn", p.label);
         node.type = "button";
-        if (p.enabled === false) node.disabled = true;
         node.addEventListener("click", function () {
           const payload = {};
           (action.payloadKeys || []).forEach(function (key) {
@@ -204,11 +200,8 @@
         });
         return node;
       }
-      default: {
-        // Unreachable for generated data (the test asserts coverage), but a
-        // renderer should degrade visibly rather than render nothing at all.
+      default:
         return el("div", "unsupported", "[unsupported component: " + type + "]");
-      }
     }
   }
 
@@ -233,35 +226,114 @@
   // ------------------------------------------------------------------ routing
 
   function handleIntent(intent, payload) {
-    if (intent === "choose") {
-      const scene = state.data.scenario.scenes[state.sceneId];
-      const target = scene.targets[payload.choice_id];
-      if (target) {
-        cue("choose");
-        showScene(target);
-        return;
+    const envelope = {
+      surface: state.surfaceId,
+      intent: intent,
+      values: payload,
+      ts: new Date().toISOString(),
+    };
+    const text = JSON.stringify(envelope, null, 2);
+    const panel = el("section", "intent-result");
+    panel.setAttribute("aria-live", "polite");
+    panel.appendChild(el("h2", null, "Intent submitted"));
+    panel.appendChild(el("pre", null, text));
+    const copy = el("button", "btn", "Copy envelope");
+    copy.type = "button";
+    const status = el("p", "muted");
+    copy.addEventListener("click", async function () {
+      try {
+        await navigator.clipboard.writeText(text);
+        status.textContent = "Envelope copied.";
+      } catch (_error) {
+        status.textContent = "Clipboard unavailable. Select and copy the envelope above.";
       }
-      toast("No scene is mapped to choice " + payload.choice_id);
-      return;
-    }
-    // Every other intent is a host-routed action. This demo has no host, and it
-    // says so rather than pretending the click did something.
+    });
+    panel.appendChild(copy);
+    panel.appendChild(status);
+    document.getElementById("stage").appendChild(panel);
     cue("intent");
-    toast("Intent " + (intent || "(none)") + " fired — a real host would route this.");
+    copy.focus();
+
+    if (intent === "CONFIRM_CHARACTER_DRAFT") {
+      state.hero.confirmed = true;
+      state.journal.push({
+        action: "CONFIRM_CHARACTER_DRAFT",
+        hero: Object.assign({}, state.hero),
+        ts: new Date().toISOString(),
+      });
+      updateHeroBadge();
+      toast("Character draft confirmed! Transitioning to adventure...");
+      window.setTimeout(function () {
+        setView("story");
+      }, 1200);
+    } else if (intent === "SWITCH_STARTER_ARCHETYPE") {
+      const isFighter = state.hero.archetype === "Fighter";
+      state.hero.archetype = isFighter ? "Wizard" : "Fighter";
+      state.hero.name = isFighter ? "Eldrin Dawncaller" : "Kaelen Ironheart";
+      state.hero.hp = isFighter ? 8 : 12;
+      state.hero.maxHp = isFighter ? 8 : 12;
+      state.hero.ac = isFighter ? 12 : 16;
+      state.journal.push({
+        action: "SWITCH_STARTER_ARCHETYPE",
+        archetype: state.hero.archetype,
+        ts: new Date().toISOString(),
+      });
+      updateHeroBadge();
+      toast("Draft switched: " + state.hero.archetype + " (" + state.hero.name + ")");
+    } else if (intent === "INVESTIGATE_APPARATUS") {
+      state.journal.push({
+        action: intent,
+        result: "Arcana check: Deciphered celestial glyphs for the Silver Dragon constellation",
+        ts: new Date().toISOString(),
+      });
+      toast("Arcana check: The glyphs reveal the Silver Dragon alignment sequence!");
+    } else if (intent === "ALIGN_CELESTIAL_DIAL") {
+      state.journal.push({
+        action: intent,
+        result: "Outer ring rotated and locked into alignment",
+        ts: new Date().toISOString(),
+      });
+      toast("Mechanism clanks into place! Celestial lens focused.");
+    } else if (intent === "CHANNEL_ARCANA") {
+      state.journal.push({
+        action: intent,
+        result: "Arcane spark ignited; starlight projected across the dome",
+        ts: new Date().toISOString(),
+      });
+      toast("Arcane spark ignited! Starlight projects the lost dungeon map.");
+    }
   }
 
-  // Deep links: #scene=<id> and #encounter. Sharing a link to a view is worth
-  // more than a scroll position, and it makes each surface reachable directly.
+  // Deep links: #onboarding, #scene=<id>, #encounter, #investigation.
   function syncHash(value) {
     if (window.location.hash !== value) {
       window.history.replaceState(null, "", value);
     }
   }
 
+  function showOnboarding() {
+    const host = document.getElementById("stage");
+    const blueprint = state.data.onboarding.surface;
+    state.surfaceId = blueprint.surface.id;
+    host.replaceChildren(renderBlueprint(blueprint, handleIntent));
+    document.getElementById("crumb").textContent = "onboarding (stage 1 & 2)";
+    syncHash("#onboarding");
+  }
+
+  function showInvestigation() {
+    const host = document.getElementById("stage");
+    const blueprint = state.data.investigation.surface;
+    state.surfaceId = blueprint.surface.id;
+    host.replaceChildren(renderBlueprint(blueprint, handleIntent));
+    document.getElementById("crumb").textContent = "investigation (level 2 custom workspace)";
+    syncHash("#investigation");
+  }
+
   function showScene(sceneId) {
     state.sceneId = sceneId;
     const scene = state.data.scenario.scenes[sceneId];
     const host = document.getElementById("stage");
+    state.surfaceId = scene.blueprint.surface.id;
     host.replaceChildren(renderBlueprint(scene.blueprint, handleIntent));
     document.getElementById("crumb").textContent = sceneId;
     syncHash("#scene=" + sceneId);
@@ -269,7 +341,9 @@
 
   function showEncounter() {
     const host = document.getElementById("stage");
-    host.replaceChildren(renderBlueprint(state.data.encounter.surface, handleIntent));
+    const blueprint = state.data.encounter.surface;
+    state.surfaceId = blueprint.surface.id;
+    host.replaceChildren(renderBlueprint(blueprint, handleIntent));
     document.getElementById("crumb").textContent =
       "encounter (seeded " + state.data.encounter.seed + ")";
     syncHash("#encounter");
@@ -281,7 +355,9 @@
       tab.classList.toggle("active", tab.dataset.view === view);
     });
     cue("navigate");
-    if (view === "story") showScene(state.sceneId);
+    if (view === "onboarding") showOnboarding();
+    else if (view === "investigation") showInvestigation();
+    else if (view === "story") showScene(state.sceneId);
     else showEncounter();
   }
 
@@ -300,14 +376,20 @@
       tab.addEventListener("click", function () { setView(tab.dataset.view); });
     });
 
+    updateHeroBadge();
     const hash = window.location.hash || "";
     const sceneMatch = /^#scene=(.+)$/.exec(hash);
     if (hash === "#encounter") {
       setView("encounter");
+    } else if (hash === "#investigation") {
+      setView("investigation");
+    } else if (hash === "#story") {
+      setView("story");
     } else if (sceneMatch && state.data.scenario.scenes[sceneMatch[1]]) {
+      setView("story");
       showScene(sceneMatch[1]);
     } else {
-      showScene(state.sceneId);
+      setView("onboarding");
     }
   }
 

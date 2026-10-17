@@ -24,9 +24,7 @@ def test_scenario_graph_is_complete_and_has_reachable_endings():
     assert scenario.start_scene in scene_ids
     assert len(scene_ids) == 5
     assert all(
-        choice.target_scene in scene_ids
-        for scene in scenario.scenes
-        for choice in scene.choices
+        choice.target_scene in scene_ids for scene in scenario.scenes for choice in scene.choices
     )
     terminal_scenes = {scene.id for scene in scenario.scenes if not scene.choices}
     assert terminal_scenes == {"quiet_return", "rising_tide"}
@@ -95,6 +93,77 @@ def test_scenario_rejects_invalid_graph_and_duplicate_choice_ids():
         )
 
 
+def test_scenario_copies_mutable_collections_and_rejects_invalid_text():
+    choices = [Choice("go", "Go", "end")]
+    start = Scene("start", "Start", "Opening", choices)
+    scenes = [start, Scene("end", "End", "Finished")]
+    scenario = Scenario("mutable", "1", "Title", "", "test", "start", scenes)
+    choices.clear()
+    scenes.clear()
+
+    assert scenario.scenes[0].choices == (Choice("go", "Go", "end"),)
+    assert len(scenario.scenes) == 2
+
+    with pytest.raises(ValueError, match="required"):
+        Scenario(" ", "1", "Title", "", "test", "start", (Scene("start", "", ""),))
+    with pytest.raises(ValueError, match="scene ids"):
+        Scenario(
+            "blank-scene",
+            "1",
+            "Title",
+            "",
+            "test",
+            "start",
+            (Scene("start", "", ""), Scene(" ", "", "")),
+        )
+    with pytest.raises(ValueError, match="choice ids"):
+        Scenario(
+            "blank-choice",
+            "1",
+            "Title",
+            "",
+            "test",
+            "start",
+            (
+                Scene("start", "", "", (Choice(" ", "Go", "end"),)),
+                Scene("end", "", ""),
+            ),
+        )
+    with pytest.raises(ValueError, match="player-facing"):
+        Scenario(
+            "blank-text",
+            "1",
+            "Title",
+            "",
+            "test",
+            "start",
+            (
+                Scene("start", "", "", (Choice("go", "  ", "end"),)),
+                Scene("end", "", ""),
+            ),
+        )
+    with pytest.raises(TypeError, match="description must be a string"):
+        Scenario(
+            "bad-description",
+            "1",
+            "Title",
+            object(),
+            "test",
+            "start",
+            (Scene("start", "", ""),),
+        )
+    with pytest.raises(TypeError, match="titles and narratives"):
+        Scenario(
+            "bad-scene-text",
+            "1",
+            "Title",
+            "",
+            "test",
+            "start",
+            (Scene("start", object(), ""),),
+        )
+
+
 def test_session_choice_is_immutable_ordered_and_rejects_unavailable_actions():
     initial = start_session(STARTER_SCENARIO)
     next_session = choose(initial, STARTER_SCENARIO, "follow_the_bell")
@@ -105,11 +174,46 @@ def test_session_choice_is_immutable_ordered_and_rejects_unavailable_actions():
     assert next_session.events[0].type == "choice_selected"
     assert next_session.events[0].choice_id == "follow_the_bell"
     assert next_session.events[0].target_scene == "sunken_shrine"
+    final_session = choose(next_session, STARTER_SCENARIO, "relight_the_lantern")
+    assert [event.sequence for event in final_session.events] == [1, 2]
+    assert next_session.events == final_session.events[:1]
 
     with pytest.raises(ValueError, match="not available"):
         choose(next_session, STARTER_SCENARIO, "help_the_courier")
     with pytest.raises(ValueError, match="different scenario"):
-        choose(GameSession("another-game", "moonlit_causeway"), STARTER_SCENARIO, "follow_the_bell")
+        choose(
+            GameSession("another-game", "moonlit_causeway"),
+            STARTER_SCENARIO,
+            "follow_the_bell",
+        )
+    versioned = Scenario(
+        id=STARTER_SCENARIO.id,
+        version="2.0.0",
+        title=STARTER_SCENARIO.title,
+        description=STARTER_SCENARIO.description,
+        author=STARTER_SCENARIO.author,
+        start_scene=STARTER_SCENARIO.start_scene,
+        scenes=STARTER_SCENARIO.scenes,
+    )
+    with pytest.raises(ValueError, match="different scenario version"):
+        choose(initial, versioned, "follow_the_bell")
+    with pytest.raises(ValueError, match="contiguous"):
+        GameSession(
+            STARTER_SCENARIO.id,
+            "sunken_shrine",
+            events=(next_session.events[0], next_session.events[0]),
+            scenario_version=STARTER_SCENARIO.version,
+        )
+
+    caller_events = list(next_session.events)
+    copied_session = GameSession(
+        next_session.game_id,
+        next_session.current_scene,
+        events=caller_events,
+        scenario_version=next_session.scenario_version,
+    )
+    caller_events.clear()
+    assert copied_session.events == next_session.events
 
 
 def test_mcp_games_v1_export_matches_game_definition_shape_deterministically():
@@ -142,11 +246,19 @@ def test_agentsurface_v01_export_is_flat_reachable_and_whitelisted():
     assert set(blueprint) == {"surface", "dataModel", "components", "intents"}
     assert set(blueprint["surface"]) == {"id", "title", "subtitle", "width"}
     assert blueprint["surface"]["width"] in {"compact", "wide"}
+    assert blueprint["dataModel"]["choice_id"] not in {
+        choice.id
+        for choice in STARTER_SCENARIO.scenes_by_id[
+            STARTER_SCENARIO.start_scene
+        ].choices
+    }
 
     components = blueprint["components"]
     by_id = {component["id"]: component for component in components}
     assert len(by_id) == len(components)
-    assert len([component for component in components if "children" not in component]) > 0
+    assert (
+        len([component for component in components if "children" not in component]) > 0
+    )
     assert all(isinstance(component, dict) for component in components)
     reachable = set()
     pending = ["root"]
@@ -162,8 +274,7 @@ def test_agentsurface_v01_export_is_flat_reachable_and_whitelisted():
         if component["type"] == "Button":
             assert component["props"]["action"]["intent"] in blueprint["intents"]
             assert all(
-                key in blueprint["dataModel"]
-                for key in component["props"]["action"]["payloadKeys"]
+                key in blueprint["dataModel"] for key in component["props"]["action"]["payloadKeys"]
             )
         if "bind" in component["props"]:
             assert component["props"]["bind"] in blueprint["dataModel"]
@@ -228,9 +339,7 @@ def test_validator_rejects_a_binding_to_an_unbound_key():
 
 def test_validator_rejects_unreachable_and_duplicate_components():
     unreachable = _valid_envelope()
-    unreachable["components"].append(
-        {"id": "orphan", "type": "Text", "props": {"text": "x"}}
-    )
+    unreachable["components"].append({"id": "orphan", "type": "Text", "props": {"text": "x"}})
     with pytest.raises(ValueError):
         validate_agentsurface_v01(unreachable)
 
@@ -294,7 +403,9 @@ def test_scenario_rejects_blank_and_duplicate_scene_ids():
         _minimal_scenario(scenes=(Scene("start", "Start", ""), Scene("", "Blank", "")))
 
     with pytest.raises(ValueError, match="scene ids must be unique"):
-        _minimal_scenario(scenes=(Scene("start", "Start", ""), Scene("start", "Again", "")))
+        _minimal_scenario(
+            scenes=(Scene("start", "Start", ""), Scene("start", "Again", ""))
+        )
 
 
 def test_scenario_rejects_a_start_scene_that_is_not_defined():
@@ -323,7 +434,11 @@ def test_scenario_rejects_blank_choice_ids_and_empty_choice_text():
 def test_choose_refuses_a_session_pointing_at_an_unknown_scene():
     # The game id matches, so the refusal must come from the scene lookup and
     # not from the cross-scenario guard that the other test already covers.
-    session = GameSession(STARTER_SCENARIO.id, "no-such-scene")
+    session = GameSession(
+        STARTER_SCENARIO.id,
+        "no-such-scene",
+        scenario_version=STARTER_SCENARIO.version,
+    )
     with pytest.raises(ValueError, match="references unknown scene"):
         choose(session, STARTER_SCENARIO, "follow_the_bell")
 
@@ -446,4 +561,167 @@ def test_validator_rejects_a_non_string_text_prop():
     envelope = _valid_envelope()
     _button(envelope)["props"]["label"] = 5
     with pytest.raises(ValueError, match="must be a string"):
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_unknown_component_types_and_props():
+    envelope = _valid_envelope()
+    envelope["components"][0]["type"] = "TacticalGrid"
+    with pytest.raises(ValueError, match="unsupported type"):
+        validate_agentsurface_v01(envelope)
+
+    envelope = _valid_envelope()
+    envelope["components"][0]["props"]["onClick"] = "run"
+    with pytest.raises(ValueError, match="unsupported props"):
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_malformed_table_and_select_props():
+    envelope = _valid_envelope()
+    envelope["components"][0]["children"].append("table")
+    envelope["components"].append(
+        {
+            "id": "table",
+            "type": "Table",
+            "props": {"columns": [{"key": 7, "label": "cell"}], "rows": []},
+        }
+    )
+    with pytest.raises(ValueError, match="Table.columns"):
+        validate_agentsurface_v01(envelope)
+
+    envelope = _valid_envelope()
+    envelope["components"][0]["children"].append("select")
+    envelope["components"].append(
+        {
+            "id": "select",
+            "type": "Select",
+            "props": {"label": "Choice", "options": [7], "bind": "choice_id"},
+        }
+    )
+    with pytest.raises(ValueError, match="Select.options"):
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_wrong_documented_prop_value_types():
+    envelope = _valid_envelope()
+    heading = next(
+        component for component in envelope["components"] if component["type"] == "Heading"
+    )
+    heading["props"]["level"] = "two"
+    with pytest.raises(ValueError, match="props.level must be integer"):
+        validate_agentsurface_v01(envelope)
+
+    envelope = _valid_envelope()
+    envelope["components"][0]["children"].append("table")
+    envelope["components"].append(
+        {
+            "id": "table",
+            "type": "Table",
+            "props": {"columns": [], "rows": [], "dense": "yes"},
+        }
+    )
+    with pytest.raises(ValueError, match="props.dense must be boolean"):
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_accepts_empty_prop_components():
+    for component_type in ("Divider", "Form"):
+        envelope = _valid_envelope()
+        component_id = component_type.lower()
+        envelope["components"][0]["children"].append(component_id)
+        envelope["components"].append({"id": component_id, "type": component_type, "props": {}})
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_malformed_table_rows_and_chart_data():
+    cases = (
+        (
+            {
+                "id": "table",
+                "type": "Table",
+                "props": {"columns": [{"key": "cell", "label": "Cell"}], "rows": [{}]},
+            },
+            "Table.rows",
+        ),
+        (
+            {
+                "id": "table-extra",
+                "type": "Table",
+                "props": {
+                    "columns": [{"key": "cell", "label": "Cell"}],
+                    "rows": [{"cell": "x", "extra": object()}],
+                },
+            },
+            "Table.rows",
+        ),
+        ({"id": "bar", "type": "BarChart", "props": {"series": [{}]}}, "BarChart.series"),
+        (
+            {"id": "line", "type": "LineChart", "props": {"points": ["bad"]}},
+            "LineChart.points",
+        ),
+        (
+            {"id": "line", "type": "LineChart", "props": {"labels": [7]}},
+            "LineChart.labels",
+        ),
+    )
+    for component, message in cases:
+        envelope = _valid_envelope()
+        envelope["components"][0]["children"].append(component["id"])
+        envelope["components"].append(component)
+        with pytest.raises(ValueError, match=message):
+            validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_extra_button_action_keys_and_invalid_layout_values():
+    envelope = _valid_envelope()
+    _button(envelope)["props"]["action"]["extra"] = "unsupported"
+    with pytest.raises(ValueError, match="unsupported action keys"):
+        validate_agentsurface_v01(envelope)
+
+    envelope = _valid_envelope()
+    envelope["components"][0]["props"]["direction"] = "diagonal"
+    with pytest.raises(ValueError, match="Stack.direction"):
+        validate_agentsurface_v01(envelope)
+
+    envelope = _valid_envelope()
+    envelope["components"][0]["children"].append("card")
+    envelope["components"].append({"id": "card", "type": "Card", "props": {"tone": "danger"}})
+    with pytest.raises(ValueError, match="Card.tone"):
+        validate_agentsurface_v01(envelope)
+
+
+def test_prop_type_helper_rejects_unknown_schema_types():
+    from game_foundation import _agentsurface_prop_has_type
+
+    assert not _agentsurface_prop_has_type({}, "unsupported")
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_validator_rejects_non_finite_json_numbers(value):
+    for component in (
+        {"id": "bar", "type": "ProgressBar", "props": {"value": value, "max": 10}},
+        {"id": "stat", "type": "Stat", "props": {"label": "Tension", "value": value}},
+        {"id": "spacer", "type": "Spacer", "props": {"size": value}},
+    ):
+        envelope = _valid_envelope()
+        envelope["components"][0]["children"].append(component["id"])
+        envelope["components"].append(component)
+        with pytest.raises(ValueError):
+            validate_agentsurface_v01(envelope)
+
+
+@pytest.mark.parametrize("value", [object(), float("nan"), {1: "non-string key"}])
+def test_validator_rejects_non_json_data_model_values(value):
+    envelope = _valid_envelope()
+    envelope["dataModel"]["choice_id"] = value
+    with pytest.raises(ValueError, match="JSON-compatible"):
+        validate_agentsurface_v01(envelope)
+
+
+def test_validator_rejects_cyclic_data_model_values():
+    cycle = []
+    cycle.append(cycle)
+    envelope = _valid_envelope()
+    envelope["dataModel"]["choice_id"] = cycle
+    with pytest.raises(ValueError, match="JSON-compatible"):
         validate_agentsurface_v01(envelope)

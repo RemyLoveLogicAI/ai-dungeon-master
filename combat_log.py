@@ -26,6 +26,7 @@ it.
 
 from __future__ import annotations
 
+import errno
 import json
 import os
 import tempfile
@@ -284,13 +285,14 @@ def default_log_dir() -> str:
 def save_log(log: CombatLog, path: str | os.PathLike[str]) -> str:
     """Atomically replace ``path`` with UTF-8 JSON and return the path.
 
-    Write, flush and sync a temporary sibling before replacing the checkpoint,
-    so a failure before replacement leaves the previous checkpoint intact.
     Symlinks are resolved before saving so the link survives and its target is
-    replaced. The caller must not concurrently retarget links or directories.
-    Handled failures remove the temporary file; a killed process may leave one.
-    This is not a power-loss durability guarantee: the parent directory (and
-    any newly created ancestors) is not synced. Concurrent saves are last-wins.
+    replaced. Failures before replacement leave the previous checkpoint intact.
+    File contents are synced before replacement; on POSIX the parent directory
+    is synced afterward where supported. A directory-sync error can therefore
+    report failure after the new checkpoint is already visible. The caller must
+    not concurrently retarget links or directories. Concurrent saves are
+    last-wins. Handled failures remove the temporary file; a killed process or
+    failed cleanup may leave one.
     """
     text = log.dumps()
     if len(text.encode("utf-8")) > MAX_LOG_BYTES:
@@ -300,18 +302,35 @@ def save_log(log: CombatLog, path: str | os.PathLike[str]) -> str:
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary: Path | None = None
     try:
+        # A sibling guarantees replacement stays on the same filesystem. Close
+        # before replacing so this also works on Windows.
         with tempfile.NamedTemporaryFile(
             mode="w", encoding="utf-8", dir=target.parent,
             prefix=f".{target.name}.", suffix=".tmp", delete=False,
-        ) as handle:
-            temporary = Path(handle.name)
-            handle.write(text)
-            handle.flush()
-            os.fsync(handle.fileno())
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write(text)
+            stream.flush()
+            os.fsync(stream.fileno())
         os.replace(temporary, target)
-    finally:
+    except BaseException:
         if temporary is not None:
-            temporary.unlink(missing_ok=True)
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                # Do not hide the original save error if cleanup also fails.
+                pass
+        raise
+    if os.name == "posix":
+        directory = os.open(target.parent, os.O_RDONLY)
+        try:
+            try:
+                os.fsync(directory)
+            except OSError as exc:
+                if exc.errno not in (errno.EINVAL, errno.ENOTSUP):
+                    raise
+        finally:
+            os.close(directory)
     return str(requested)
 
 

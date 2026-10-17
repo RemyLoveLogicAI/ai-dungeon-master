@@ -1,0 +1,77 @@
+{
+  "timestamp": 1792214144.649751,
+  "elapsed_seconds": 0.5904579162597656,
+  "jam_recording_link": "https://recorder.jam.dev/9HDwJg9",
+  "phases": {
+    "encounter_generation": {
+      "easy": {
+        "achieved": "easy",
+        "monster_count": 2,
+        "monsters": [
+          "Orc",
+          "Orc"
+        ],
+        "raw_xp": 200,
+        "adjusted_xp": 300
+      },
+      "medium": {
+        "achieved": "medium",
+        "monster_count": 3,
+        "monsters": [
+          "Orc",
+          "Orc",
+          "Orc"
+        ],
+        "raw_xp": 300,
+        "adjusted_xp": 600
+      },
+      "hard": {
+        "achieved": "hard",
+        "monster_count": 5,
+        "monsters": [
+          "Orc",
+          "Orc",
+          "Orc",
+          "Orc",
+          "Orc"
+        ],
+        "raw_xp": 500,
+        "adjusted_xp": 1000
+      },
+      "deadly": {
+        "achieved": "deadly",
+        "monster_count": 7,
+        "monsters": [
+          "Orc",
+          "Orc",
+          "Orc",
+          "Orc",
+          "Orc",
+          "Orc",
+          "Orc"
+        ],
+        "raw_xp": 700,
+        "adjusted_xp": 1750
+      }
+    },
+    "tactical_combat": {
+      "outcome": "victory",
+      "rounds": 5,
+      "xp_awarded": 150,
+      "events_count": 16,
+      "replay_verified": true
+    },
+    "tui_and_persistence": {
+      "initial_entries": 2,
+      "resumed_entries": 4,
+      "sequence_contiguous": true,
+      "replay_verified": true
+    },
+    "web_demo_contract": {
+      "scenes_count": 5,
+      "encounter_components": 28,
+      "contract": "agentsurface-blueprint/0.1"
+    }
+  },
+  "verdict": "PASSED_ALL_GATES"
+}

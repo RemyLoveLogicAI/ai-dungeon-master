@@ -112,18 +112,16 @@ what a fresh replay produces, so tampering and corruption are both detectable.
 
 `tui_runner.py` carries the same envelope into an interactive session. Every
 attack it resolves is committed with `record_entry`, and the log is rewritten at
-the end of each round, so a run that stops - a crash, a closed terminal - is
-resumable from the last successfully saved round. `save_log` writes a temporary
-sibling, flushes and syncs its contents, closes it, then atomically replaces the
-checkpoint. Symlink paths are resolved first: the temporary file is a sibling
-of the resolved target, and replacement preserves the link itself. Callers must
-not concurrently retarget symlinks or directories during a save. The returned
-path remains the caller-supplied path. A write, flush, sync, or replacement
-failure leaves the previous checkpoint intact; handled failures clean up the
-temporary file. An abruptly
-killed process may leave an unused temporary sibling. This protects against
-interrupted saves, not power loss: parent directories are not synced. Saves do
-not coordinate concurrent writers (the last replacement wins). `--resume` reads
+the end of each round using a flushed, file-synced sibling and atomic
+replacement. A process interruption leaves the last successfully replaced
+checkpoint resumable, rather than truncating it during the next save. Before
+the first successful save there is no checkpoint. Symlink paths are resolved
+first: the temporary file is a sibling of the resolved target, replacement
+preserves the link itself, and the returned path remains the caller-supplied
+path. Callers must not concurrently retarget symlinks or directories during a
+save. Parent-directory syncing is attempted on POSIX where supported; power-loss
+guarantees depend on the storage platform (see the README persistence notes).
+Saves do not coordinate concurrent writers (the last replacement wins). `--resume` reads
 the file back through the strict boundary, refuses a log that does not replay from its own recorded
 dice, refuses a log from a different encounter or one that already ended, and
 rebuilds the state the log describes: hit points, distance, the next round, and

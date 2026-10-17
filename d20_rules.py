@@ -56,20 +56,20 @@ class Condition(Enum):
 
 class CoverType(Enum):
     NONE = "None"
-    HALF = "Half"              # +2 AC and Dex saving throws
+    HALF = "Half"  # +2 AC and Dex saving throws
     THREE_QUARTERS = "Three-Quarters"  # +5 AC and Dex saving throws
-    TOTAL = "Total"            # Cannot be targeted directly
+    TOTAL = "Total"  # Cannot be targeted directly
 
 
 class LightingLevel(Enum):
     BRIGHT = "Bright Light"
-    DIM = "Dim Light"          # Lightly obscured, disadvantage on Perception
-    DARKNESS = "Darkness"      # Heavily obscured, effectively blinded without darkvision
+    DIM = "Dim Light"  # Lightly obscured, disadvantage on Perception
+    DARKNESS = "Darkness"  # Heavily obscured, effectively blinded without darkvision
 
 
 class RestType(Enum):
-    SHORT = "Short Rest"      # 1 hour: spend Hit Dice to recover HP
-    LONG = "Long Rest"        # 8 hours: recover all HP, half hit dice, reset spell slots
+    SHORT = "Short Rest"  # 1 hour: spend Hit Dice to recover HP
+    LONG = "Long Rest"  # 8 hours: recover all HP, half hit dice, reset spell slots
 
 
 @dataclass
@@ -140,6 +140,7 @@ class AttackRequest:
 @dataclass
 class ActionEconomy:
     """Tracks action resource expenditure per turn under 5e action economy."""
+
     has_action: bool = True
     has_bonus_action: bool = True
     has_reaction: bool = True
@@ -251,7 +252,9 @@ class RecordingDiceSource(DiceSource):
     """Wraps another source and records every result, in order."""
 
     def __init__(self, source: DiceSource | None = None):
-        self._source: DiceSource = source if source is not None else ModuleRandomDiceSource()
+        self._source: DiceSource = (
+            source if source is not None else ModuleRandomDiceSource()
+        )
         self._rolls: list[int] = []
 
     @property
@@ -283,7 +286,7 @@ def roll_dice(count: int, sides: int, dice: DiceSource | None = None) -> int:
 def roll_d20(
     modifier: int = 0,
     mode: AdvantageMode = AdvantageMode.NORMAL,
-    dice: DiceSource | None = None
+    dice: DiceSource | None = None,
 ) -> RollResult:
     source = _resolve_dice(dice)
     r1 = source.roll(20)
@@ -296,11 +299,7 @@ def roll_d20(
         selected = r1
 
     return RollResult(
-        d20_roll=selected,
-        first_die=r1,
-        second_die=r2,
-        mode=mode,
-        modifier=modifier
+        d20_roll=selected, first_die=r1, second_die=r2, mode=mode, modifier=modifier
     )
 
 
@@ -309,23 +308,35 @@ def compute_effective_advantage(
     attacker_conditions: set[Condition] | None = None,
     target_conditions: set[Condition] | None = None,
     distance_ft: float = 5.0,
-    is_melee: bool = True
+    is_melee: bool = True,
 ) -> AdvantageMode:
     """Calculates final AdvantageMode following D&D 5e rule: any advantage + any disadvantage = Normal."""
-    has_adv = (base_mode == AdvantageMode.ADVANTAGE)
-    has_dis = (base_mode == AdvantageMode.DISADVANTAGE)
+    has_adv = base_mode == AdvantageMode.ADVANTAGE
+    has_dis = base_mode == AdvantageMode.DISADVANTAGE
 
     att = attacker_conditions or set()
     tgt = target_conditions or set()
 
     # Attacker conditions
-    if Condition.BLINDED in att or Condition.POISONED in att or Condition.FRIGHTENED in att or Condition.RESTRAINED in att:
+    if (
+        Condition.BLINDED in att
+        or Condition.POISONED in att
+        or Condition.FRIGHTENED in att
+        or Condition.RESTRAINED in att
+    ):
         has_dis = True
     if Condition.INVISIBLE in att:
         has_adv = True
 
     # Target conditions
-    if Condition.BLINDED in tgt or Condition.PARALYZED in tgt or Condition.PETRIFIED in tgt or Condition.STUNNED in tgt or Condition.UNCONSCIOUS in tgt or Condition.RESTRAINED in tgt:
+    if (
+        Condition.BLINDED in tgt
+        or Condition.PARALYZED in tgt
+        or Condition.PETRIFIED in tgt
+        or Condition.STUNNED in tgt
+        or Condition.UNCONSCIOUS in tgt
+        or Condition.RESTRAINED in tgt
+    ):
         has_adv = True
     if Condition.INVISIBLE in tgt:
         has_dis = True
@@ -359,19 +370,17 @@ def resolve_saving_throw(
     modifier: int,
     dc: int,
     mode: AdvantageMode = AdvantageMode.NORMAL,
-    dice: DiceSource | None = None
+    dice: DiceSource | None = None,
 ) -> SavingThrowResult:
     roll = roll_d20(modifier=modifier, mode=mode, dice=dice)
-    is_success = (roll.total >= dc)
+    is_success = roll.total >= dc
     status_str = "SUCCESS" if is_success else "FAILURE"
-    msg = (f"[{status_str}] {character_name} {ability.value} Saving Throw: "
-           f"rolled {roll.d20_roll}+{modifier}={roll.total} vs DC {dc}.")
+    msg = (
+        f"[{status_str}] {character_name} {ability.value} Saving Throw: "
+        f"rolled {roll.d20_roll}+{modifier}={roll.total} vs DC {dc}."
+    )
     return SavingThrowResult(
-        ability=ability,
-        roll=roll,
-        dc=dc,
-        is_success=is_success,
-        message=msg
+        ability=ability, roll=roll, dc=dc, is_success=is_success, message=msg
     )
 
 
@@ -387,7 +396,7 @@ def resolve_rest(
     current_spell_slots: int,
     max_spell_slots: int,
     exhaustion_level: int = 0,
-    dice: DiceSource | None = None
+    dice: DiceSource | None = None,
 ) -> RestRecovery:
     # Fail closed at the boundary, the same way the combat-log readers do: a
     # wrong type raises TypeError, a wrong value raises ValueError. An
@@ -415,7 +424,7 @@ def resolve_rest(
                 hit_dice_recovered=0,
                 spell_slots_restored=0,
                 exhaustion_reduced=0,
-                summary=summary
+                summary=summary,
             )
         else:
             return RestRecovery(
@@ -425,15 +434,17 @@ def resolve_rest(
                 hit_dice_recovered=0,
                 spell_slots_restored=0,
                 exhaustion_reduced=0,
-                summary=f"{character_name} rested briefly, catching breath with no Hit Dice spent."
+                summary=f"{character_name} rested briefly, catching breath with no Hit Dice spent.",
             )
     else:  # LONG REST
         recovered_hp = max_hp - current_hp
         recovered_hd = max(1, total_hit_dice // 2)
         restored_slots = max_spell_slots - current_spell_slots
         reduced_exhaustion = 1 if exhaustion_level > 0 else 0
-        summary = (f"{character_name} completed an 8-hour Long Rest: recovered {recovered_hp} HP (full), "
-                   f"{restored_slots} spell slots, {recovered_hd} Hit Dice, and reduced exhaustion by {reduced_exhaustion}.")
+        summary = (
+            f"{character_name} completed an 8-hour Long Rest: recovered {recovered_hp} HP (full), "
+            f"{restored_slots} spell slots, {recovered_hd} Hit Dice, and reduced exhaustion by {reduced_exhaustion}."
+        )
         return RestRecovery(
             rest_type=RestType.LONG,
             hp_recovered=recovered_hp,
@@ -441,7 +452,7 @@ def resolve_rest(
             hit_dice_recovered=recovered_hd,
             spell_slots_restored=restored_slots,
             exhaustion_reduced=reduced_exhaustion,
-            summary=summary
+            summary=summary,
         )
 
 
@@ -457,7 +468,7 @@ def resolve_attack(
     advantage: AdvantageMode = AdvantageMode.NORMAL,
     cover: CoverType = CoverType.NONE,
     is_incapacitated_or_unconscious: bool = False,
-    dice: DiceSource | None = None
+    dice: DiceSource | None = None,
 ) -> AttackResolution:
     """Resolve one attack.
 
@@ -477,17 +488,20 @@ def resolve_attack(
             damage_type=damage_type,
             advantage=advantage,
             cover=cover,
-            is_incapacitated_or_unconscious=is_incapacitated_or_unconscious
+            is_incapacitated_or_unconscious=is_incapacitated_or_unconscious,
         ),
-        dice=dice
+        dice=dice,
     )
 
 
 def resolve_attack_request(
-    request: AttackRequest,
-    dice: DiceSource | None = None
+    request: AttackRequest, dice: DiceSource | None = None
 ) -> AttackResolution:
     """Resolve a fully specified ``AttackRequest`` against ``dice``."""
+    if request.damage_dice_count < 0:
+        raise ValueError("count must be non-negative")
+    if request.damage_die_sides <= 0:
+        raise ValueError("sides must be positive")
     attacker = request.attacker
     target = request.target
     damage_type = request.damage_type
@@ -502,7 +516,7 @@ def resolve_attack_request(
             is_critical=False,
             damage_dealt=0,
             damage_type=damage_type,
-            combat_message=f"[TOTAL COVER] {attacker} cannot target {target} through total cover!"
+            combat_message=f"[TOTAL COVER] {attacker} cannot target {target} through total cover!",
         )
 
     effective_ac = request.target_ac + calculate_cover_bonus(request.cover)
@@ -523,20 +537,29 @@ def resolve_attack_request(
     elif roll.is_natural_20:
         is_hit = True
         is_critical = True
-        damage = roll_dice(damage_dice_count * 2, damage_die_sides, dice=dice) + damage_modifier
+        damage = (
+            roll_dice(damage_dice_count * 2, damage_die_sides, dice=dice)
+            + damage_modifier
+        )
         damage = max(1, damage)
         msg = f"[CRITICAL HIT] {attacker} rolls a Natural 20 vs {target} (AC {effective_ac}) for {damage} {damage_type.value} damage!"
     else:
-        is_hit = (roll.total >= effective_ac)
+        is_hit = roll.total >= effective_ac
         if is_hit:
             # If target is incapacitated/paralyzed/unconscious within melee range, hit becomes an automatic crit
             if request.is_incapacitated_or_unconscious:
                 is_critical = True
-                damage = roll_dice(damage_dice_count * 2, damage_die_sides, dice=dice) + damage_modifier
+                damage = (
+                    roll_dice(damage_dice_count * 2, damage_die_sides, dice=dice)
+                    + damage_modifier
+                )
                 damage = max(1, damage)
                 msg = f"[CRITICAL HIT - VULNERABLE] {attacker} strikes helpless {target} (AC {effective_ac}) for {damage} {damage_type.value} damage!"
             else:
-                damage = roll_dice(damage_dice_count, damage_die_sides, dice=dice) + damage_modifier
+                damage = (
+                    roll_dice(damage_dice_count, damage_die_sides, dice=dice)
+                    + damage_modifier
+                )
                 damage = max(1, damage)
                 msg = f"[HIT] {attacker} attacks {target}: Rolled {roll.d20_roll}+{attack_modifier}={roll.total} vs AC {effective_ac} -> Deals {damage} {damage_type.value} damage."
         else:
@@ -551,5 +574,5 @@ def resolve_attack_request(
         is_critical=is_critical,
         damage_dealt=damage if is_hit else 0,
         damage_type=damage_type,
-        combat_message=msg
+        combat_message=msg,
     )

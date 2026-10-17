@@ -1,0 +1,54 @@
+name: Feature PRD
+description: Propose a feature with clear scope and verifiable acceptance criteria.
+title: "[PRD] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this issue as the source of truth for the feature. Link its issue number from the pull request and feature log.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and opportunity
+      description: What user need or problem does this address?
+    validations:
+      required: true
+  - type: textarea
+    id: users
+    attributes:
+      label: Target users and outcomes
+      description: Who benefits, and what should they be able to accomplish?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+      description: Define what is included and explicitly excluded.
+    validations:
+      required: true
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements and user flows
+      description: Describe expected behavior, including errors, accessibility, and relevant integration boundaries.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable, testable outcomes; use one checkbox per criterion.
+      placeholder: |
+        - [ ] Given ..., when ..., then ...
+    validations:
+      required: true
+  - type: textarea
+    id: release
+    attributes:
+      label: Release and compatibility notes
+      description: Expected version increment, data/API compatibility, rollout, and licensing/provenance considerations.
+    validations:
+      required: true

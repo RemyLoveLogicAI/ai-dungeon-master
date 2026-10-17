@@ -413,8 +413,8 @@ def run_tui_encounter(
             print(TerminalSurfaceRenderer.render_panel("ENCOUNTER RESOLUTION", feed[-2:], width=64, color=ANSI.FG_CRIMSON))
             break
 
-        # Durability point: a crash mid-round costs at most this round, and the
-        # saved tail stays contiguous with what a resume will rebuild.
+        # Atomic checkpoint: interruption preserves the last successful save.
+        # Until the first save succeeds, there is no checkpoint to resume.
         if target is not None:
             save_log(CombatLog(entries=tuple(entries), dropped=dropped), target)
 
