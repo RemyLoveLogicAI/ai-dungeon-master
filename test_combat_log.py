@@ -104,6 +104,43 @@ class TestFileBoundary(unittest.TestCase):
         self.assertEqual(len(restored), 3)
         self.assertTrue(verify_log(restored))
 
+    def test_save_follows_symlink_without_replacing_it(self):
+        for existing in (False, True):
+            with self.subTest(existing=existing), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                target = root / "storage" / "encounter.json"
+                target.parent.mkdir()
+                if existing:
+                    save_log(make_log(1), target)
+                link = root / "checkpoint.json"
+                link.symlink_to(Path("storage") / target.name)
+                updated = make_log(2)
+                with mock.patch.object(combat_log.os, "replace", wraps=os.replace) as replace:
+                    self.assertEqual(save_log(updated, link), str(link))
+                replace.assert_called_once()
+                source, destination = replace.call_args.args
+                self.assertEqual(source.parent, target.parent)
+                self.assertEqual(destination, target)
+                self.assertTrue(link.is_symlink())
+                self.assertEqual(load_log(target), updated)
+                self.assertEqual(load_log(link), updated)
+                self.assertEqual(list(target.parent.iterdir()), [target])
+
+    def test_failed_symlink_save_preserves_link_and_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "encounter.json"
+            previous = make_log(1)
+            save_log(previous, target)
+            link = Path(directory) / "checkpoint.json"
+            link.symlink_to(target)
+            with mock.patch.object(
+                combat_log.os, "replace", side_effect=OSError("save failed")
+            ), self.assertRaisesRegex(OSError, "save failed"):
+                save_log(make_log(2), link)
+            self.assertTrue(link.is_symlink())
+            self.assertEqual(load_log(target), previous)
+            self.assertEqual(set(Path(directory).iterdir()), {target, link})
+
     def test_failed_write_preserves_previous_checkpoint(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "encounter.json"

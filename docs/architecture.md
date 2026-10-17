@@ -115,8 +115,12 @@ attack it resolves is committed with `record_entry`, and the log is rewritten at
 the end of each round, so a run that stops - a crash, a closed terminal - is
 resumable from the last successfully saved round. `save_log` writes a temporary
 sibling, flushes and syncs its contents, closes it, then atomically replaces the
-checkpoint. A write, flush, sync, or replacement failure leaves the previous
-checkpoint intact; handled failures clean up the temporary file. An abruptly
+checkpoint. Symlink paths are resolved first: the temporary file is a sibling
+of the resolved target, and replacement preserves the link itself. Callers must
+not concurrently retarget symlinks or directories during a save. The returned
+path remains the caller-supplied path. A write, flush, sync, or replacement
+failure leaves the previous checkpoint intact; handled failures clean up the
+temporary file. An abruptly
 killed process may leave an unused temporary sibling. This protects against
 interrupted saves, not power loss: parent directories are not synced. Saves do
 not coordinate concurrent writers (the last replacement wins). `--resume` reads

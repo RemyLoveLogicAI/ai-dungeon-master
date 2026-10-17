@@ -286,6 +286,8 @@ def save_log(log: CombatLog, path: str | os.PathLike[str]) -> str:
 
     Write, flush and sync a temporary sibling before replacing the checkpoint,
     so a failure before replacement leaves the previous checkpoint intact.
+    Symlinks are resolved before saving so the link survives and its target is
+    replaced. The caller must not concurrently retarget links or directories.
     Handled failures remove the temporary file; a killed process may leave one.
     This is not a power-loss durability guarantee: the parent directory (and
     any newly created ancestors) is not synced. Concurrent saves are last-wins.
@@ -293,7 +295,8 @@ def save_log(log: CombatLog, path: str | os.PathLike[str]) -> str:
     text = log.dumps()
     if len(text.encode("utf-8")) > MAX_LOG_BYTES:
         raise ValueError(f"serialized log exceeds the {MAX_LOG_BYTES} byte limit")
-    target = Path(path)
+    requested = Path(path)
+    target = requested.resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary: Path | None = None
     try:
@@ -309,7 +312,7 @@ def save_log(log: CombatLog, path: str | os.PathLike[str]) -> str:
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
-    return str(target)
+    return str(requested)
 
 
 def load_log(
