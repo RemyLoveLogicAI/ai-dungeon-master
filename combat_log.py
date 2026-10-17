@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -281,13 +282,33 @@ def default_log_dir() -> str:
 
 
 def save_log(log: CombatLog, path: str | os.PathLike[str]) -> str:
-    """Write the envelope to ``path`` as UTF-8 JSON and return the path."""
+    """Atomically replace ``path`` with UTF-8 JSON and return the path.
+
+    Write, flush and sync a temporary sibling before replacing the checkpoint,
+    so a failure before replacement leaves the previous checkpoint intact.
+    Handled failures remove the temporary file; a killed process may leave one.
+    This is not a power-loss durability guarantee: the parent directory (and
+    any newly created ancestors) is not synced. Concurrent saves are last-wins.
+    """
     text = log.dumps()
     if len(text.encode("utf-8")) > MAX_LOG_BYTES:
         raise ValueError(f"serialized log exceeds the {MAX_LOG_BYTES} byte limit")
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(text, encoding="utf-8")
+    temporary: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=target.parent,
+            prefix=f".{target.name}.", suffix=".tmp", delete=False,
+        ) as handle:
+            temporary = Path(handle.name)
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, target)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
     return str(target)
 
 

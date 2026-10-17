@@ -1,7 +1,9 @@
+import io
 import json
 import os
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import combat_log
@@ -101,6 +103,108 @@ class TestFileBoundary(unittest.TestCase):
             restored = load_log(saved)
         self.assertEqual(len(restored), 3)
         self.assertTrue(verify_log(restored))
+
+    def test_failed_write_preserves_previous_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "encounter.json"
+            previous = make_log(1)
+            save_log(previous, path)
+            original_bytes = path.read_bytes()
+            real_open = io.open
+
+            def interrupted_open(*args, **kwargs):
+                handle = real_open(*args, **kwargs)
+                mode = args[1] if len(args) > 1 else kwargs.get("mode", "r")
+                if "w" not in mode:
+                    return handle
+                wrapped = mock.MagicMock(wraps=handle)
+                wrapped.__enter__.return_value = wrapped
+                wrapped.__exit__.side_effect = handle.__exit__
+
+                def partial_write(text):
+                    handle.write(text[:10])
+                    handle.flush()
+                    raise OSError("interrupted write")
+
+                wrapped.write.side_effect = partial_write
+                return wrapped
+
+            with (
+                mock.patch("io.open", side_effect=interrupted_open),
+                self.assertRaisesRegex(OSError, "interrupted write"),
+            ):
+                save_log(make_log(2), path)
+
+            self.assertEqual(path.read_bytes(), original_bytes)
+            self.assertEqual(load_log(path), previous)
+            self.assertEqual(list(Path(directory).iterdir()), [path])
+
+    def test_replacement_publishes_a_complete_synced_sibling(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "encounter.json"
+            previous, updated = make_log(1), make_log(2)
+            save_log(previous, path)
+            real_replace = os.replace
+            real_fsync = os.fsync
+            synced = []
+
+            def sync(fd):
+                # The Python buffer must already be flushed when fsync runs.
+                with os.fdopen(os.dup(fd), "r", encoding="utf-8") as reader:
+                    reader.seek(0)
+                    self.assertEqual(CombatLog.loads(reader.read()), updated)
+                real_fsync(fd)
+                synced.append(fd)
+
+            def replace(source, destination):
+                self.assertEqual(len(synced), 1)
+                self.assertEqual(source.parent, path.parent)
+                self.assertNotEqual(source, path)
+                self.assertEqual(load_log(source), updated)
+                self.assertEqual(load_log(path), previous)
+                real_replace(source, destination)
+
+            with (
+                mock.patch.object(combat_log.os, "fsync", side_effect=sync),
+                mock.patch.object(combat_log.os, "replace", side_effect=replace) as replacement,
+            ):
+                self.assertEqual(save_log(updated, path), str(path))
+            replacement.assert_called_once()
+            self.assertEqual(load_log(path), updated)
+            self.assertEqual(list(Path(directory).iterdir()), [path])
+
+    def test_sync_or_replace_failure_preserves_checkpoint_and_cleans_up(self):
+        for operation in ("fsync", "replace"):
+            for existing in (False, True):
+                with (
+                    self.subTest(operation=operation, existing=existing),
+                    tempfile.TemporaryDirectory() as directory,
+                ):
+                    path = Path(directory) / "encounter.json"
+                    previous = make_log(1)
+                    if existing:
+                        save_log(previous, path)
+                    with mock.patch.object(
+                        combat_log.os, operation, side_effect=OSError("save failed")
+                    ), self.assertRaisesRegex(OSError, "save failed"):
+                        save_log(make_log(2), path)
+                    if existing:
+                        self.assertEqual(load_log(path), previous)
+                    else:
+                        self.assertFalse(path.exists())
+                    self.assertEqual(list(Path(directory).iterdir()), [path] if existing else [])
+
+    def test_temporary_file_creation_failure_preserves_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "encounter.json"
+            previous = make_log(1)
+            save_log(previous, path)
+            with mock.patch.object(
+                combat_log.tempfile, "NamedTemporaryFile", side_effect=OSError("no space")
+            ), self.assertRaisesRegex(OSError, "no space"):
+                save_log(make_log(2), path)
+            self.assertEqual(load_log(path), previous)
+            self.assertEqual(list(Path(directory).iterdir()), [path])
 
     def test_saved_file_is_utf8_json(self):
         with tempfile.TemporaryDirectory() as directory:
