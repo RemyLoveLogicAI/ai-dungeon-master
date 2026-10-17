@@ -268,6 +268,35 @@ D&D 5e ruleset. See the SRD licensing boundary and provenance source in
 
 ## Development
 
+### Test the generated encounter locally
+
+From this repository, run the **auto-play prototype** with the existing Python
+environment (no server, downloads, or remote Bible connection required):
+
+```bash
+.venv/bin/python combat_runner.py generated --difficulty medium --seed 7
+```
+
+Try `easy`, `medium`, `hard`, or `deadly`. The demo uses two level-3 heroes and
+three original, explicitly populated demo templates, exercises the strict adapter
+without fixture defaults, and prints every resolved attack plus final HP/outcome.
+The same seed reproduces selection and combat. This is not yet an interactive
+campaign; initiative is assigned and XP is reported rather than persisted.
+
+Optional bounded run, JSON output, and replay-verified attack-log export:
+
+```bash
+.venv/bin/python combat_runner.py generated --difficulty hard --seed 42 --rounds 20
+.venv/bin/python combat_runner.py generated --seed 7 --json
+.venv/bin/python combat_runner.py generated --seed 7 --log /tmp/dnd-demo-attacks.json
+```
+
+Export uses the existing `combat-encounter-log/1` format, not an asserted external
+GPF campaign contract. Existing no-argument script and installed demo entry points
+retain their previous behavior.
+
+### Validation
+
 ```bash
 uv sync --dev
 uv run pytest -v

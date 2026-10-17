@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import argparse
+import json
 import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
@@ -16,7 +18,7 @@ from combat_log import (
     verify_log,
 )
 from combat_schema import require_validator
-from d20_rules import AdvantageMode, AttackRequest, DamageType, DiceSource
+from d20_rules import AdvantageMode, AttackRequest, DamageType, DiceSource, SeededDiceSource
 from encounter_ai import CombatActionType, EncounterEnemy
 from encounter_generator import CreatureCandidate, Difficulty, generate_encounter
 
@@ -695,6 +697,105 @@ def run_generated_encounter(
     }
 
 
+def run_generated_demo(
+    *, difficulty: str = "medium", seed: int = 7, max_rounds: int = 50
+) -> dict[str, Any]:
+    """Run an auto-play prototype with original, explicit local demo statistics.
+
+    Both selection and attacks are seeded here; no fixture-default synthesis or
+    remote Bible data is used. Initiative values are assigned scenario inputs,
+    not rolled setup, and rewards are reported rather than persisted.
+    """
+    party = [
+        CombatantState(
+            name="Alden", current_hp=28, max_hp=28, ac=15, attack_modifier=5,
+            damage_dice_count=1, damage_die_sides=8, damage_modifier=3,
+            damage_type=DamageType.SLASHING, initiative=12,
+            abilities={"str": 16, "dex": 12, "con": 14, "int": 10,
+                       "wis": 10, "cha": 12, "level": 3},
+        ),
+        CombatantState(
+            name="Mira", current_hp=24, max_hp=24, ac=14, attack_modifier=5,
+            damage_dice_count=1, damage_die_sides=6, damage_modifier=3,
+            damage_type=DamageType.PIERCING, initiative=16,
+            abilities={"str": 10, "dex": 16, "con": 12, "int": 12,
+                       "wis": 14, "cha": 10, "level": 3},
+        ),
+    ]
+    candidates = [
+        CreatureCandidate("Demo Skirmisher", 50, "1/4", {
+            "hp": {"current": 7, "max": 7}, "ac": 13, "attack_modifier": 3,
+            "damage": {"dice": 1, "sides": 6, "modifier": 1, "type": "piercing"},
+            "stance": "aggressive", "initiative": 14,
+        }),
+        CreatureCandidate("Demo Guard", 25, "1/8", {
+            "hp": {"current": 11, "max": 11}, "ac": 12, "attack_modifier": 3,
+            "damage": {"dice": 1, "sides": 6, "modifier": 1, "type": "slashing"},
+            "stance": "defensive", "initiative": 10,
+        }),
+        CreatureCandidate("Demo Brute", 200, "1", {
+            "hp": {"current": 24, "max": 24}, "ac": 12, "attack_modifier": 4,
+            "damage": {"dice": 1, "sides": 8, "modifier": 2, "type": "bludgeoning"},
+            "stance": "aggressive", "initiative": 8,
+        }),
+    ]
+    result = run_generated_encounter(
+        party, candidates, difficulty, seed=seed, dice=SeededDiceSource(seed),
+        max_rounds=max_rounds,
+    )
+    return {
+        "data_source": "explicit-local-demo",
+        "limitations": [
+            "Auto-play prototype, not an interactive campaign or the remote Bible.",
+            "Assigned initiative; XP is reported, not persisted or awarded idempotently.",
+            "Attack summaries are not validated against the external GPF event schema.",
+        ],
+        **result,
+    }
+
+
+def main(argv: Sequence[str] | None = None) -> None:
+    """Preserve the legacy script default and expose a generated encounter test CLI."""
+    parser = argparse.ArgumentParser(description="AI Dungeon Master local test runner")
+    commands = parser.add_subparsers(dest="command")
+    generated = commands.add_parser("generated", help="auto-play a seeded explicit-data demo")
+    generated.add_argument("--difficulty", choices=[d.value for d in Difficulty], default="medium")
+    generated.add_argument("--seed", type=int, default=7)
+    generated.add_argument("--rounds", type=int, default=50, help="maximum combat rounds")
+    generated.add_argument("--json", action="store_true", help="emit the result and replayable log")
+    generated.add_argument("--log", help="save and verify a combat-encounter-log/1 attack log")
+    args = parser.parse_args(argv)
+    if args.command is None:
+        run_simulated_encounter()
+        return
+
+    try:
+        result = run_generated_demo(difficulty=args.difficulty, seed=args.seed, max_rounds=args.rounds)
+        if args.log:
+            restored = load_log(save_log(result["log"], args.log))
+            if not verify_log(restored):
+                raise ValueError("Saved attack log did not replay successfully")
+    except (ValueError, OSError) as exc:
+        parser.error(str(exc))
+
+    if args.json:
+        print(json.dumps({**result, "log": result["log"].to_dict()}, indent=2, sort_keys=True))
+        return
+
+    print("=== AUTO-PLAY LOCAL DEMO ===")
+    print(f"Difficulty: {args.difficulty} | Seed: {args.seed}")
+    print("Explicit demo stats, not the remote Bible. Assigned initiative; no campaign persistence.")
+    encounter = result["encounter"]
+    print(f"Selected enemies: {len(result['enemies'])} | Adjusted XP: {encounter['budget']['adjusted_xp']}")
+    for event in result["game_events"]:
+        print(f"{event['sequence']:>3}. {event['combat_message']}")
+    print(f"Outcome: {result['outcome']} | Rounds: {result['rounds']} | XP reported: {result['xp_awarded']}")
+    for actor in result["party"] + result["enemies"]:
+        print(f"  {actor['name']}: HP {actor['hp']['current']}/{actor['hp']['max']}")
+    if args.log:
+        print(f"Saved verified attack log: {args.log}")
+
+
 if __name__ == "__main__":
-    run_simulated_encounter()
+    main()
 

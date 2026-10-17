@@ -60,6 +60,22 @@ def test_json_demo_and_saved_log_replay(tmp_path, capsys):
     assert verify_log(load_log(path))
 
 
+def test_terminal_demo_reports_verified_log_location(tmp_path, capsys):
+    path = tmp_path / "encounter.json"
+    combat_runner.main(["generated", "--log", str(path)])
+    assert f"Saved verified attack log: {path}" in capsys.readouterr().out
+    assert verify_log(load_log(path))
+
+
+def test_failed_log_replay_is_not_reported_as_verified(tmp_path, capsys):
+    with mock.patch.object(combat_runner, "verify_log", return_value=False), pytest.raises(
+        SystemExit
+    ) as exc:
+        combat_runner.main(["generated", "--log", str(tmp_path / "encounter.json")])
+    assert exc.value.code == 2
+    assert "did not replay successfully" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize("argv", [
     ["generated", "--difficulty", "impossible"],
     ["generated", "--rounds", "0"],
