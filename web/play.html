@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'; media-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="theme-color" content="#111b28">
+  <title>Your story begins · AI Dungeon Master</title>
+  <link rel="stylesheet" href="play.css">
+  <script src="play.js" defer></script>
+</head>
+<body>
+<header class="masthead">
+  <a class="brand" href="play.html"><span class="sigil" aria-hidden="true">✧</span><span>THE LIVING CHRONICLE<small>AI DUNGEON MASTER</small></span></a>
+  <div class="header-actions"><span id="provider-status" class="connection" role="status">Connecting…</span><button id="audio-toggle" class="quiet" disabled>Play music</button><button id="help-toggle" class="quiet" aria-expanded="false" aria-controls="help">How to play</button></div>
+</header>
+<main>
+  <aside id="help" class="help panel" hidden><h2>A seat at your own adventure</h2><p>Your Dungeon Master is an AI agent. It describes the world, portrays its inhabitants, and guides your choices. Start with your experience and the kind of hero you imagine; no rules knowledge is required.</p><p>You control your character. Type anything you want to attempt, ask for an explanation, or use the options your DM creates. Review your character before explicitly beginning the adventure.</p><p>2024 starter adventure — guided human starter builds; full edition coverage in development.</p></aside>
+  <section id="notice" class="notice" role="alert" hidden><span id="notice-text"></span><button id="retry" hidden>Retry</button></section>
+  <div class="workspace">
+    <section class="adventure" aria-label="Adventure">
+      <div class="art-stage" id="art-stage"><img id="scene-art" hidden alt=""><div class="art-empty" id="art-empty"><span class="compass" aria-hidden="true">✧</span><p id="art-status">A world waiting to be imagined</p></div><div class="art-caption"><span class="eyebrow" id="stage-label">YOUR ADVENTURE STARTS HERE</span><h1 id="scene-title">Every legend begins<br>with a character.</h1></div></div>
+      <div class="story-body">
+        <section id="welcome"><p class="lead">An AI Dungeon Master. A world shaped by your decisions. A story that belongs to you.</p><p class="muted">Begin with a conversation. Your DM will help you discover your hero, explain the rules at your pace, and bring your adventure to life.</p><button id="start" class="primary">Meet your Dungeon Master <span aria-hidden="true">↗</span></button><p class="scope">2024 starter adventure — guided human starter builds; full edition coverage in development.</p></section>
+        <section id="dm-turn" hidden><div class="dm-byline"><span class="dm-mark" aria-hidden="true">✦</span><span>YOUR DUNGEON MASTER</span><span id="turn-status" role="status"></span></div><p id="narration" class="narration"></p><div id="generated-surface" aria-label="Choices from your Dungeon Master"></div><button id="confirm-character" class="primary" hidden>Begin adventure with this character</button></section>
+        <form id="composer" hidden><label for="action">What would you like to do?</label><div class="compose-row"><textarea id="action" rows="2" maxlength="4000" placeholder="Describe your hero, ask a question, or try something unexpected…" required></textarea><button class="primary" id="send" type="submit">Send <span aria-hidden="true">↗</span></button></div><p class="scope">Ask for help whenever you need it. Your DM will guide you.</p></form>
+      </div>
+    </section>
+    <aside class="sidebar" aria-label="Campaign companion">
+      <section class="panel campaign-panel"><p class="eyebrow">YOUR TABLE</p><h2>The chronicle</h2><label for="campaign-select">Resume a campaign</label><select id="campaign-select"><option value="">Choose a saved campaign…</option></select><button id="new-campaign" class="quiet full">Start a new chronicle</button><p id="campaign-state" class="scope">Your campaign is saved on this server.</p></section>
+      <section class="panel"><p class="eyebrow">THE HERO</p><h2 id="hero-name">An unwritten name</h2><div id="character-sheet"><p class="muted">Your character will take shape here as you and your DM create them together.</p></div></section>
+      <section class="panel"><p class="eyebrow">CAMPAIGN JOURNAL</p><h2>Along the way</h2><div id="journal"><p class="muted">Your decisions and their consequences will be recorded here.</p></div></section>
+    </aside>
+  </div>
+</main>
+<footer>Made by your choices. Guided by the rules. <a href="index.html">Explore the authored demo</a></footer>
+<audio id="soundtrack" loop preload="none"></audio>
+</body>
+</html>

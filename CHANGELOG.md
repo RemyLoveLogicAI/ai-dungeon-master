@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Experimental AgentSurface DSL v0.1 encounter export with strict component
+  and property whitelists, plus a local demo that returns copyable intent
+  envelopes without executing combat actions.
+- `uvx ai-dungeon-master` entry point and tagged release workflow that publishes
+  the same tested distributions to TestPyPI and PyPI through OIDC.
 
 - `py.typed` marker so type checkers consume the package's inline annotations.
 - `CONTRIBUTING.md`, `SECURITY.md`, a pull-request template, and Dependabot

@@ -18,14 +18,17 @@
       <p id="subtitle" class="muted"></p>
     </div>
     <nav class="tabs" aria-label="Views">
-      <button type="button" data-view="story" class="tab active">Story</button>
+      <button type="button" data-view="onboarding" class="tab active">Onboarding</button>
+      <button type="button" data-view="story" class="tab">Story</button>
       <button type="button" data-view="encounter" class="tab">Encounter</button>
+      <button type="button" data-view="investigation" class="tab">Investigation</button>
     </nav>
   </header>
 
   <p class="crumb-row">
     Rendered from <code id="contract">agentsurface-blueprint/0.1</code> ·
-    current surface: <span id="crumb" class="crumb"></span>
+    current surface: <span id="crumb" class="crumb"></span> ·
+    <span id="hero-badge" class="crumb">Hero: Unassigned</span>
   </p>
 
   <main id="stage" aria-live="polite"></main>
