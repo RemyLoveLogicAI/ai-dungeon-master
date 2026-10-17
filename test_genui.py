@@ -175,12 +175,16 @@ def test_export_matches_the_shared_agentsurface_contract():
     envelope = _build_blueprint().to_agentsurface_v01()
     reference = scenario_export(STARTER_SCENARIO)
 
-    assert set(envelope) == set(reference) == {
-        "surface",
-        "dataModel",
-        "components",
-        "intents",
-    }
+    assert (
+        set(envelope)
+        == set(reference)
+        == {
+            "surface",
+            "dataModel",
+            "components",
+            "intents",
+        }
+    )
     assert envelope["surface"] == {
         "id": "encounter-round-1",
         "title": "Dungeon Crypt Encounter",
@@ -230,6 +234,18 @@ def test_exported_buttons_declare_routeable_intents_and_bound_payloads():
     assert envelope["dataModel"]["btn-attack.target"] == "Shadow Gargoyle"
 
 
+def test_unavailable_actions_export_as_non_interactive_text():
+    blueprint = _build_blueprint(hero_actions_available={"Action": False})
+    envelope = blueprint.to_agentsurface_v01()
+    by_id = {component["id"]: component for component in envelope["components"]}
+
+    for component_id in ("btn-attack", "btn-dodge", "btn-spell"):
+        assert by_id[component_id]["type"] == "Text"
+        assert by_id[component_id]["props"]["text"].endswith("— unavailable")
+    assert by_id["btn-rest"]["type"] == "Button"
+    assert envelope["intents"] == ["TAKE_REST"]
+
+
 def test_export_rejects_a_blueprint_with_no_components():
     with pytest.raises(ValueError):
         SurfaceBlueprint(surfaceId="empty", title="Empty").to_agentsurface_v01()
@@ -241,3 +257,17 @@ def test_console_entry_point_returns_none_so_sys_exit_succeeds(monkeypatch):
     monkeypatch.setattr(tui_runner, "generate_all_sfx", lambda output_dir: {})
     monkeypatch.setattr(tui_runner.time, "sleep", lambda _seconds: None)
     assert tui_runner.main() is None
+
+
+def test_onboarding_surface_validates_and_exports_expected_intents():
+    blueprint = GenUIBlueprintFactory.create_onboarding_surface()
+    envelope = blueprint.to_agentsurface_v01()
+    assert envelope["surface"]["id"] == "onboarding-stage-1-2"
+    assert "CONFIRM_CHARACTER_DRAFT" in envelope["intents"]
+    assert "SWITCH_STARTER_ARCHETYPE" in envelope["intents"]
+    assert "ADJUST_GUIDANCE" in envelope["intents"]
+    by_id = {c["id"]: c for c in envelope["components"]}
+    assert by_id["welcome-card"]["type"] == "Card"
+    assert by_id["draft-card"]["type"] == "Card"
+    assert by_id["btn-confirm"]["type"] == "Button"
+

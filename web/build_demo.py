@@ -189,16 +189,21 @@ def simulate_encounter(seed: int = ENCOUNTER_SEED) -> dict[str, Any]:
 
 def build_demo_data() -> dict[str, Any]:
     """Assemble and self-validate the whole demo payload."""
+    onboarding_surface = GenUIBlueprintFactory.create_onboarding_surface().to_agentsurface_v01()
     # Annotated explicitly: inferred from the literal, mypy widens the value type
     # and the indexing below stops type-checking.
     data: dict[str, Any] = {
         "contract": AGENTSURFACE_ADAPTER_VERSION,
         "generator": "web/build_demo.py",
+        "onboarding": {
+            "surface": onboarding_surface,
+        },
         "scenario": export_scenario(STARTER_SCENARIO),
         "encounter": simulate_encounter(),
     }
     # Fail closed here, at build time: a blueprint that does not satisfy the
     # contract must never reach the browser as "valid" data.
+    validate_agentsurface_v01(data["onboarding"]["surface"], root="root")
     for scene_id, entry in data["scenario"]["scenes"].items():
         validate_agentsurface_v01(entry["blueprint"], root="root")
         assert scene_id, "scene ids must be non-empty"
