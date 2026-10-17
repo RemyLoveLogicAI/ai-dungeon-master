@@ -21,7 +21,34 @@
     "ProgressBar", "Table", "Select", "Button",
   ];
 
-  const state = { data: null, sceneId: null, view: "story" };
+  const state = {
+    data: null,
+    sceneId: null,
+    view: "onboarding",
+    hero: {
+      name: "Kaelen Ironheart",
+      archetype: "Fighter",
+      species: "Human",
+      background: "Soldier",
+      level: 1,
+      hp: 12,
+      maxHp: 12,
+      ac: 16,
+      edition: "D&D 5th Edition (Revised 2024)",
+      confirmed: false,
+    },
+    journal: [],
+  };
+
+  function updateHeroBadge() {
+    const node = document.getElementById("hero-badge");
+    if (!node) return;
+    if (state.hero.confirmed) {
+      node.textContent = "⚔️ " + state.hero.name + " · " + state.hero.archetype + " (Lv " + state.hero.level + ") · HP " + state.hero.hp + "/" + state.hero.maxHp + " · AC " + state.hero.ac;
+    } else {
+      node.textContent = "Draft: " + state.hero.name + " (" + state.hero.archetype + ")";
+    }
+  }
 
   // ---------------------------------------------------------------- utilities
 
@@ -228,10 +255,31 @@
     copy.focus();
 
     if (intent === "CONFIRM_CHARACTER_DRAFT") {
+      state.hero.confirmed = true;
+      state.journal.push({
+        action: "CONFIRM_CHARACTER_DRAFT",
+        hero: Object.assign({}, state.hero),
+        ts: new Date().toISOString(),
+      });
+      updateHeroBadge();
       toast("Character draft confirmed! Transitioning to adventure...");
       window.setTimeout(function () {
         setView("story");
-      }, 1500);
+      }, 1200);
+    } else if (intent === "SWITCH_STARTER_ARCHETYPE") {
+      const isFighter = state.hero.archetype === "Fighter";
+      state.hero.archetype = isFighter ? "Wizard" : "Fighter";
+      state.hero.name = isFighter ? "Eldrin Dawncaller" : "Kaelen Ironheart";
+      state.hero.hp = isFighter ? 8 : 12;
+      state.hero.maxHp = isFighter ? 8 : 12;
+      state.hero.ac = isFighter ? 12 : 16;
+      state.journal.push({
+        action: "SWITCH_STARTER_ARCHETYPE",
+        archetype: state.hero.archetype,
+        ts: new Date().toISOString(),
+      });
+      updateHeroBadge();
+      toast("Draft switched: " + state.hero.archetype + " (" + state.hero.name + ")");
     }
   }
 
@@ -298,6 +346,7 @@
       tab.addEventListener("click", function () { setView(tab.dataset.view); });
     });
 
+    updateHeroBadge();
     const hash = window.location.hash || "";
     const sceneMatch = /^#scene=(.+)$/.exec(hash);
     if (hash === "#encounter") {
