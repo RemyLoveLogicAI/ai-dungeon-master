@@ -15,6 +15,7 @@ from d20_rules import (
     DamageType,
     RestType,
     ScriptedDiceSource,
+    SeededDiceSource,
     compute_effective_advantage,
     resolve_attack,
     resolve_rest,
@@ -726,7 +727,9 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
 
     def test_from_candidate_fixture(self):
         candidate = CreatureCandidate("Orc", 100, "1/2", {"biome": ["hills"]})
-        combatant = combat_runner.CombatantState.from_candidate(candidate)
+        combatant = combat_runner.CombatantState.from_candidate(
+            candidate, allow_fixture_defaults=True
+        )
         self.assertEqual(combatant.name, "Orc")
         self.assertEqual(combatant.cr, 0.5)
         self.assertEqual(combatant.xp, 100)
@@ -735,7 +738,9 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
 
     def test_from_candidate_with_count_index(self):
         combatant = combat_runner.CombatantState.from_candidate(
-            {"name": "Wolf", "xp": 50, "cr": "1/4"}, count_index=2
+            {"name": "Wolf", "xp": 50, "cr": "1/4"},
+            count_index=2,
+            allow_fixture_defaults=True,
         )
         self.assertEqual(combatant.name, "Wolf #2")
 
@@ -744,7 +749,7 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
             "Goblin",
             50,
             "1/4",
-            {"name": "Overridden Name", "xp": 9999, "hp": 12, "ac": 14},
+            {**self.goblin_spec, "name": "Overridden Name", "xp": 9999, "hp": 12, "ac": 14},
         )
         c1 = combat_runner.CombatantState.from_candidate(candidate, count_index=1)
         self.assertEqual(c1.name, "Goblin")
@@ -753,6 +758,99 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
         c2 = combat_runner.CombatantState.from_candidate(candidate, count_index=3)
         self.assertEqual(c2.name, "Goblin #3")
         self.assertEqual(c2.xp, 50)
+
+    def test_candidate_requires_combat_facets_by_default(self):
+        with self.assertRaisesRegex(ValueError, "Goblin.*hp.*ac"):
+            combat_runner.CombatantState.from_candidate(CreatureCandidate("Goblin", 50, "1/4"))
+
+    def test_candidate_does_not_guess_unsupported_source_layout(self):
+        candidate = CreatureCandidate(
+            "Goblin", 50, "1/4",
+            {"armor_class": 15, "hit_points": {"average": 7},
+             "damage": self.goblin_spec["damage"]},
+        )
+        with self.assertRaisesRegex(ValueError, "hp.*ac"):
+            combat_runner.CombatantState.from_candidate(candidate)
+
+    def test_candidate_requires_each_normalized_combat_field(self):
+        for key in ("hp", "ac", "attack_modifier", "damage", "stance"):
+            with self.subTest(key=key):
+                facets = {k: v for k, v in self.goblin_spec.items() if k != key}
+                with self.assertRaisesRegex(ValueError, key):
+                    combat_runner.CombatantState.from_candidate(
+                        CreatureCandidate("Goblin", 50, "1/4", facets)
+                    )
+
+    def test_candidate_preserves_explicit_combat_values_without_mutation(self):
+        import copy
+
+        facets = copy.deepcopy(self.goblin_spec)
+        before = copy.deepcopy(facets)
+        combatant = combat_runner.CombatantState.from_candidate(
+            CreatureCandidate("Goblin", 50, "1/4", facets), count_index=2
+        )
+        expected = {**self.goblin_spec, "name": "Goblin #2"}
+        self.assertEqual(combatant.to_state_block(), expected)
+        self.assertEqual(facets, before)
+
+    def test_candidate_rejects_missing_or_invalid_metadata(self):
+        valid = {"name": "Goblin", "xp_per_unit": 50, "cr": "1/4",
+                 "facets": self.goblin_spec}
+        for key in ("name", "xp_per_unit", "cr"):
+            with self.subTest(missing=key):
+                bad = {k: v for k, v in valid.items() if k != key}
+                with self.assertRaisesRegex(ValueError, key):
+                    combat_runner.CombatantState.from_candidate(bad)
+        for changes in ({"name": " "}, {"xp_per_unit": 1.5}, {"xp_per_unit": True},
+                        {"cr": "invalid"}, {"cr": "nan"}, {"cr": -1}):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                combat_runner.CombatantState.from_candidate({**valid, **changes})
+
+    def test_candidate_rejects_unknown_damage_type(self):
+        for fixture_mode in (False, True):
+            facets = {**self.goblin_spec,
+                      "damage": {**self.goblin_spec["damage"], "type": "not-a-damage-type"}}
+            with self.subTest(fixture_mode=fixture_mode):
+                with self.assertRaisesRegex(ValueError, "damage.type"):
+                    combat_runner.CombatantState.from_candidate(
+                        CreatureCandidate("Goblin", 50, "1/4", facets),
+                        allow_fixture_defaults=fixture_mode,
+                    )
+
+    def test_fixture_defaults_preserve_supplied_state_block(self):
+        combatant = combat_runner.CombatantState.from_candidate(
+            CreatureCandidate("Goblin Ambusher", 50, "1/4", self.goblin_spec),
+            allow_fixture_defaults=True,
+        )
+        self.assertEqual(combatant.to_state_block(), self.goblin_spec)
+
+    def test_fixture_defaults_do_not_repair_malformed_explicit_damage(self):
+        with self.assertRaisesRegex(ValueError, "damage.*sides"):
+            combat_runner.CombatantState.from_candidate(
+                CreatureCandidate("Goblin", 50, "1/4",
+                                  {**self.goblin_spec, "damage": {"dice": 1}}),
+                allow_fixture_defaults=True,
+            )
+
+    def test_generated_encounter_rejects_incomplete_candidates_before_combat(self):
+        hp_before = self.pc.current_hp
+        with self.assertRaisesRegex(ValueError, "Goblin.*hp"):
+            combat_runner.run_generated_encounter(
+                [self.pc], [CreatureCandidate("Goblin", 50, "1/4")],
+                Difficulty.EASY, seed=42,
+            )
+        self.assertEqual(self.pc.current_hp, hp_before)
+
+    def test_generated_encounter_accepts_explicit_combat_facets(self):
+        result = combat_runner.run_generated_encounter(
+            [self.pc], [CreatureCandidate("Goblin", 50, "1/4", self.goblin_spec)],
+            Difficulty.EASY, seed=42, dice=SeededDiceSource(42),
+        )
+        self.assertGreater(len(result["game_events"]), 0)
+        for enemy in result["enemies"]:
+            self.assertEqual(enemy["hp"]["max"], 7)
+            self.assertEqual(enemy["ac"], 15)
+            self.assertEqual(enemy["damage"], self.goblin_spec["damage"])
 
     def test_run_encounter_victory_flow(self):
         weak_enemy = combat_runner.CombatantState(
@@ -896,6 +994,7 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
             candidates,
             Difficulty.EASY,
             seed=42,
+            allow_fixture_defaults=True,
         )
         self.assertIn("encounter", res)
         self.assertEqual(res["encounter"]["version"], "gpf/encounter.v1")
