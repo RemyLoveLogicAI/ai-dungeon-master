@@ -26,8 +26,10 @@ it.
 
 from __future__ import annotations
 
+import errno
 import json
 import os
+import tempfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -281,13 +283,49 @@ def default_log_dir() -> str:
 
 
 def save_log(log: CombatLog, path: str | os.PathLike[str]) -> str:
-    """Write the envelope to ``path`` as UTF-8 JSON and return the path."""
+    """Atomically replace ``path`` with UTF-8 JSON and return the path.
+
+    Failures before replacement leave the previous checkpoint intact. File
+    contents are synced before replacement; on POSIX the parent directory is
+    synced afterward where supported. A directory-sync error can therefore
+    report failure after the new checkpoint is already visible.
+    """
     text = log.dumps()
     if len(text.encode("utf-8")) > MAX_LOG_BYTES:
         raise ValueError(f"serialized log exceeds the {MAX_LOG_BYTES} byte limit")
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(text, encoding="utf-8")
+    temporary = None
+    try:
+        # A sibling guarantees replacement stays on the same filesystem. Close
+        # before replacing so this also works on Windows.
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=target.parent,
+            prefix=f".{target.name}.", suffix=".tmp", delete=False,
+        ) as stream:
+            temporary = Path(stream.name)
+            stream.write(text)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, target)
+    except BaseException:
+        if temporary is not None:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                # Do not hide the original save error if cleanup also fails.
+                pass
+        raise
+    if os.name == "posix":
+        directory = os.open(target.parent, os.O_RDONLY)
+        try:
+            try:
+                os.fsync(directory)
+            except OSError as exc:
+                if exc.errno not in (errno.EINVAL, errno.ENOTSUP):
+                    raise
+        finally:
+            os.close(directory)
     return str(target)
 
 

@@ -287,6 +287,19 @@ print(verify_log(restored))           # True: the reloaded log still replays
 print(trim_log(restored, 100).dropped)  # retention: entries dropped, if any
 ```
 
+`save_log` writes a unique sibling temporary file, flushes and syncs its contents,
+then atomically replaces the checkpoint. A failure before replacement preserves
+the previous checkpoint (or leaves no checkpoint on the first save), and errors
+propagate to the caller. Temporary files are cleaned up on handled failures; a
+hard kill or failed cleanup can leave an unused `.tmp` sibling. On POSIX, the
+parent directory is synced where supported; Windows and filesystems that reject
+directory syncing have no directory-durability guarantee. Power-loss durability
+also depends on the filesystem/hardware and existing parent directories. A
+directory-sync error can be raised after the new checkpoint is visible. Saves
+replace the directory entry (including a symlink), use private temporary-file
+permissions, and do not preserve the old file metadata. Concurrent writers are
+not coordinated: the last replacement wins.
+
 Records deliberately carry only the numbers and fictional names attached to an
 attack: no prompts, player context, or executable content cross the boundary.
 
