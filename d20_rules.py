@@ -499,9 +499,9 @@ def resolve_attack_request(
 ) -> AttackResolution:
     """Resolve a fully specified ``AttackRequest`` against ``dice``."""
     if request.damage_dice_count < 0:
-        raise ValueError("damage dice count must be nonnegative")
+        raise ValueError("count must be non-negative")
     if request.damage_die_sides <= 0:
-        raise ValueError("damage die sides must be positive")
+        raise ValueError("sides must be positive")
     attacker = request.attacker
     target = request.target
     damage_type = request.damage_type

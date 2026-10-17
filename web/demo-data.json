@@ -463,7 +463,7 @@
             }
           ],
           "dataModel": {
-            "choice_id": "follow_the_bell"
+            "choice_id": ""
           },
           "intents": [
             "choose"
@@ -651,7 +651,7 @@
             }
           ],
           "dataModel": {
-            "choice_id": "relight_the_lantern"
+            "choice_id": ""
           },
           "intents": [
             "choose"
@@ -751,7 +751,7 @@
             }
           ],
           "dataModel": {
-            "choice_id": "share_supplies"
+            "choice_id": ""
           },
           "intents": [
             "choose"

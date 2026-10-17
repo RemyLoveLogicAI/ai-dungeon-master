@@ -45,6 +45,7 @@ FLOORS: dict[str, float] = {
     "encounter_generator.py": 91.0,
     "game_foundation.py": 98.0,
     "genui.py": 98.0,
+    "scripts/verify_release.py": 98.0,
     "tui_runner.py": 97.0,
     "web/build_demo.py": 87.0,
 }
@@ -57,7 +58,8 @@ def read_percentages(report: Path) -> dict[str, float]:
     payload: dict[str, Any] = json.loads(report.read_text(encoding="utf-8"))
     files: dict[str, Any] = payload["files"]
     return {
-        name: float(entry["summary"]["percent_covered"]) for name, entry in files.items()
+        name: float(entry["summary"]["percent_covered"])
+        for name, entry in files.items()
     }
 
 

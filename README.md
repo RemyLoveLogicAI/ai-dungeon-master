@@ -318,6 +318,9 @@ top of it and refuses a report older than the code it describes.
 The simulation/export core remains stdlib-only. `jsonschema` is an optional
 extra used only for published-schema checks.
 
+Product requirements, feature-to-release traceability, the 1.0 MVP gate, and
+release safeguards are documented in [docs/product](docs/product/README.md).
+
 ## CI/CD
 
 - **CI** ([ci.yml](.github/workflows/ci.yml)): the lockfile is checked against

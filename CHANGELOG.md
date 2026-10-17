@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `py.typed` marker so type checkers consume the package's inline annotations.
 - `CONTRIBUTING.md`, `SECURITY.md`, a pull-request template, and Dependabot
   configuration.
+- Feature PRD, release traceability, and 1.0 MVP validation templates and gates.
 
 - `encounter_generator.py`: seeded XP-budget encounter selection from caller-provided
   creature candidates, preserving arbitrary facets in the `gpf/encounter.v1`

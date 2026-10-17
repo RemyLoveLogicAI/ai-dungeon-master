@@ -15,7 +15,9 @@ AGENTSURFACE_ADAPTER_VERSION = "agentsurface-blueprint/0.1"
 
 _AGENTSURFACE_SURFACE_KEYS = frozenset({"id", "title", "subtitle", "width"})
 _AGENTSURFACE_COMPONENT_KEYS = frozenset({"id", "type", "props", "children"})
-_AGENTSURFACE_TOP_LEVEL_KEYS = frozenset({"surface", "dataModel", "components", "intents"})
+_AGENTSURFACE_TOP_LEVEL_KEYS = frozenset(
+    {"surface", "dataModel", "components", "intents"}
+)
 _AGENTSURFACE_WIDTHS = frozenset({"compact", "wide"})
 _AGENTSURFACE_TEXT_PROPS = (
     "text",
@@ -47,6 +49,9 @@ class Scene:
     narrative: str
     choices: tuple[Choice, ...] = ()
 
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "choices", tuple(self.choices))
+
 
 @dataclass(frozen=True)
 class Scenario:
@@ -61,26 +66,61 @@ class Scenario:
     scenes: tuple[Scene, ...]
 
     def __post_init__(self) -> None:
-        if not all((self.id, self.version, self.title, self.author, self.start_scene)):
-            raise ValueError("scenario id, version, title, author, and start_scene are required")
+        object.__setattr__(self, "scenes", tuple(self.scenes))
+
+        required_text = (
+            self.id,
+            self.version,
+            self.title,
+            self.author,
+            self.start_scene,
+        )
+        if any(
+            not isinstance(value, str) or not value.strip() for value in required_text
+        ):
+            raise ValueError(
+                "scenario id, version, title, author, and start_scene are required"
+            )
+        if not isinstance(self.description, str):
+            raise TypeError("scenario description must be a string")
+        if any(not isinstance(scene, Scene) for scene in self.scenes):
+            raise ValueError("scenes must contain only Scene values")
         scene_ids = [scene.id for scene in self.scenes]
-        if any(not scene_id for scene_id in scene_ids):
+        if any(
+            not isinstance(scene_id, str) or not scene_id.strip()
+            for scene_id in scene_ids
+        ):
             raise ValueError("scene ids must be non-empty")
         if len(scene_ids) != len(set(scene_ids)):
             raise ValueError("scene ids must be unique")
+        if any(
+            not isinstance(scene.title, str) or not isinstance(scene.narrative, str)
+            for scene in self.scenes
+        ):
+            raise TypeError("scene titles and narratives must be strings")
         scenes_by_id = {scene.id: scene for scene in self.scenes}
         if self.start_scene not in scenes_by_id:
             raise ValueError("start_scene must identify a defined scene")
         for scene in self.scenes:
+            if any(not isinstance(choice, Choice) for choice in scene.choices):
+                raise ValueError(f"choices in scene {scene.id!r} must be Choice values")
             choice_ids = [choice.id for choice in scene.choices]
-            if any(not choice_id for choice_id in choice_ids):
+            if any(
+                not isinstance(choice_id, str) or not choice_id.strip()
+                for choice_id in choice_ids
+            ):
                 raise ValueError(f"choice ids in scene {scene.id!r} must be non-empty")
             if len(choice_ids) != len(set(choice_ids)):
                 raise ValueError(f"choice ids in scene {scene.id!r} must be unique")
             for choice in scene.choices:
-                if not choice.text:
-                    raise ValueError(f"choice {choice.id!r} must have player-facing text")
-                if choice.target_scene not in scenes_by_id:
+                if not isinstance(choice.text, str) or not choice.text.strip():
+                    raise ValueError(
+                        f"choice {choice.id!r} must have player-facing text"
+                    )
+                if (
+                    not isinstance(choice.target_scene, str)
+                    or choice.target_scene not in scenes_by_id
+                ):
                     raise ValueError(
                         f"choice {choice.id!r} targets unknown scene {choice.target_scene!r}"
                     )
@@ -122,17 +162,33 @@ class GameSession:
     game_id: str
     current_scene: str
     events: tuple[GameEvent, ...] = ()
+    scenario_version: str = ""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "events", tuple(self.events))
+        if any(not isinstance(event, GameEvent) for event in self.events):
+            raise ValueError("events must contain only GameEvent values")
+        if [event.sequence for event in self.events] != list(
+            range(1, len(self.events) + 1)
+        ):
+            raise ValueError("event sequence must be contiguous starting at 1")
 
 
 def start_session(scenario: Scenario) -> GameSession:
     """Create an in-memory session at the scenario's declared start scene."""
-    return GameSession(game_id=scenario.id, current_scene=scenario.start_scene)
+    return GameSession(
+        game_id=scenario.id,
+        current_scene=scenario.start_scene,
+        scenario_version=scenario.version,
+    )
 
 
 def choose(session: GameSession, scenario: Scenario, choice_id: str) -> GameSession:
     """Apply one valid choice and return a new session with an appended event."""
     if session.game_id != scenario.id:
         raise ValueError("session belongs to a different scenario")
+    if session.scenario_version != scenario.version:
+        raise ValueError("session belongs to a different scenario version")
     scene = scenario.scenes_by_id.get(session.current_scene)
     if scene is None:
         raise ValueError(f"session references unknown scene {session.current_scene!r}")
@@ -150,6 +206,7 @@ def choose(session: GameSession, scenario: Scenario, choice_id: str) -> GameSess
         game_id=session.game_id,
         current_scene=choice.target_scene,
         events=(*session.events, event),
+        scenario_version=session.scenario_version,
     )
 
 
@@ -217,7 +274,9 @@ def validate_agentsurface_v01(payload: Any, root: str = "root") -> None:
         raise TypeError("dataModel must be an object")
 
     intents = payload["intents"]
-    if not isinstance(intents, list) or not all(isinstance(item, str) for item in intents):
+    if not isinstance(intents, list) or not all(
+        isinstance(item, str) for item in intents
+    ):
         raise ValueError("intents must be a list of strings")
 
     components = payload["components"]
@@ -230,7 +289,9 @@ def validate_agentsurface_v01(payload: Any, root: str = "root") -> None:
             raise TypeError("every component must be an object")
         unsupported = set(component) - _AGENTSURFACE_COMPONENT_KEYS
         if unsupported:
-            raise ValueError(f"component carries unsupported keys: {sorted(unsupported)}")
+            raise ValueError(
+                f"component carries unsupported keys: {sorted(unsupported)}"
+            )
         component_id = component.get("id")
         if not isinstance(component_id, str) or not component_id:
             raise ValueError("every component needs a non-empty string id")
@@ -246,7 +307,9 @@ def validate_agentsurface_v01(payload: Any, root: str = "root") -> None:
             not isinstance(children, list)
             or not all(isinstance(child, str) for child in children)
         ):
-            raise ValueError(f"component {component_id!r} children must be a list of ids")
+            raise ValueError(
+                f"component {component_id!r} children must be a list of ids"
+            )
         by_id[component_id] = component
 
     if root not in by_id:
@@ -295,7 +358,9 @@ def validate_agentsurface_v01(payload: Any, root: str = "root") -> None:
                 )
 
 
-def to_agentsurface_v01(scenario: Scenario, scene_id: str | None = None) -> dict[str, Any]:
+def to_agentsurface_v01(
+    scenario: Scenario, scene_id: str | None = None
+) -> dict[str, Any]:
     """Export a static AgentSurface v0.1 blueprint for one scene's choices.
 
     Defaults to the scenario's start scene. Pass ``scene_id`` to export any
@@ -313,8 +378,7 @@ def to_agentsurface_v01(scenario: Scenario, scene_id: str | None = None) -> dict
     elif scene_id not in scenes_by_id:
         raise ValueError(f"unknown scene {scene_id!r}")
     opening = scenes_by_id[scene_id]
-    choice_id = opening.choices[0].id if opening.choices else ""
-    data_model = {"choice_id": choice_id}
+    data_model = {"choice_id": ""}
     components: list[dict[str, Any]] = [
         {
             "id": "root",

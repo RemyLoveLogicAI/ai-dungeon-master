@@ -1,28 +1,36 @@
-## What changed
+## Purpose
 
-<!-- One or two sentences. What is different, and why. -->
+<!-- What user need does this change address? -->
 
-## Why
+## Product requirement
 
-<!-- The problem this solves. Link an issue or a backlog ticket if there is one. -->
+- PRD / issue: <!-- Link the feature PRD issue or bug issue. For non-feature maintenance, explain why a PRD does not apply. -->
+- Acceptance criteria completed:
+  - [ ]
 
-## How it was verified
+## Change summary
 
-<!-- What you actually ran. "CI will catch it" is not verification. -->
+<!-- Summarize behavior and relevant integration-contract changes. -->
 
+## Validation
+
+- [ ] Focused tests added or updated
+- [ ] `uv run pytest -q`
 - [ ] `uv run ruff check .`
-- [ ] `uv run pytest -v`
-- [ ] `uv run pytest --cov` (meets the 92% gate), if coverage could move
-- [ ] The installed wheel still runs both entry points, if packaging changed
+- [ ] `uv build` (when packaging/build inputs changed)
 
-## Checklist
+## Release traceability
 
-- [ ] The core stays dependency-free (no new runtime dependency without a
-      stated reason it cannot use stdlib).
-- [ ] New stochastic paths thread the injectable `DiceSource` rather than
-      calling `random` directly.
-- [ ] A changed export mapping is introduced under a new adapter contract
-      identifier, not by mutating a published one.
-- [ ] A bug fix includes a test that fails without the fix.
-- [ ] Docs and the description describe what the code does; anything not
-      implemented is marked out of scope rather than implied to exist.
+- [ ] Updated `CHANGELOG.md` under `[Unreleased]`
+- [ ] Updated `docs/product/FEATURE_LOG.md` with PRD, PR, and intended version, or marked this change as non-feature maintenance
+- [ ] No release or package publication is triggered by this pull request
+- Version intent: <!-- patch / next feature point (e.g. 1.1.0) / no release -->
+
+## Cross-repository impact
+
+- [ ] No external contract impact
+- [ ] Contract change is documented and compatible, or coordinated with linked consumer PRs
+
+## Risks and rollback
+
+<!-- Note meaningful risks, migration, observability, or rollback requirements. -->
