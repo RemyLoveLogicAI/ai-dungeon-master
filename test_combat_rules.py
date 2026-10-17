@@ -810,12 +810,13 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
         for fixture_mode in (False, True):
             facets = {**self.goblin_spec,
                       "damage": {**self.goblin_spec["damage"], "type": "not-a-damage-type"}}
-            with self.subTest(fixture_mode=fixture_mode):
-                with self.assertRaisesRegex(ValueError, "damage.type"):
-                    combat_runner.CombatantState.from_candidate(
-                        CreatureCandidate("Goblin", 50, "1/4", facets),
-                        allow_fixture_defaults=fixture_mode,
-                    )
+            with self.subTest(fixture_mode=fixture_mode), self.assertRaisesRegex(
+                ValueError, "damage.type"
+            ):
+                combat_runner.CombatantState.from_candidate(
+                    CreatureCandidate("Goblin", 50, "1/4", facets),
+                    allow_fixture_defaults=fixture_mode,
+                )
 
     def test_fixture_defaults_preserve_supplied_state_block(self):
         combatant = combat_runner.CombatantState.from_candidate(
@@ -823,6 +824,34 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
             allow_fixture_defaults=True,
         )
         self.assertEqual(combatant.to_state_block(), self.goblin_spec)
+
+    def test_fixture_opt_in_requires_a_boolean(self):
+        candidate = CreatureCandidate("Goblin", 50, "1/4", self.goblin_spec)
+        for value in (1, "false", None):
+            with self.subTest(value=value), self.assertRaisesRegex(TypeError, "boolean"):
+                combat_runner.CombatantState.from_candidate(
+                    candidate, allow_fixture_defaults=value
+                )
+
+    def test_candidate_does_not_coerce_malformed_explicit_stats(self):
+        changes = (
+            {"ac": True}, {"attack_modifier": 2.5}, {"hp": 7.5},
+            {"hp": {"current": 7, "max": True}},
+            {"damage": {**self.goblin_spec["damage"], "dice": True}},
+            {"damage": {**self.goblin_spec["damage"], "sides": 6.5}},
+            {"damage": {**self.goblin_spec["damage"], "modifier": "2"}},
+            {"stance": ""}, {"stance": None}, {"stance": "unknown"},
+        )
+        for change in changes:
+            for fixture_mode in (False, True):
+                with self.subTest(change=change, fixture_mode=fixture_mode), self.assertRaises(
+                    (ValueError, TypeError)
+                ):
+                    combat_runner.CombatantState.from_candidate(
+                        CreatureCandidate("Goblin", 50, "1/4",
+                                          {**self.goblin_spec, **change}),
+                        allow_fixture_defaults=fixture_mode,
+                    )
 
     def test_fixture_defaults_do_not_repair_malformed_explicit_damage(self):
         with self.assertRaisesRegex(ValueError, "damage.*sides"):

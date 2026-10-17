@@ -126,7 +126,8 @@ validates levels, counts, candidate XP and difficulty labels. Its random search
 is a heuristic: the target difficulty is not guaranteed when available
 candidates cannot form a valid budget.
 
-Execute the generated encounter through the turn loop ([`docs/CORE-GAME-LOOP-SPEC.md`](docs/CORE-GAME-LOOP-SPEC.md)):
+Run a **synthetic demo** through the turn loop ([`docs/CORE-GAME-LOOP-SPEC.md`](docs/CORE-GAME-LOOP-SPEC.md))
+using the selection-only roster above. Demo statistics require explicit opt-in:
 
 ```python
 from combat_runner import CombatantState, run_generated_encounter
@@ -134,9 +135,26 @@ from combat_runner import CombatantState, run_generated_encounter
 party = [
     CombatantState(name="Alden", current_hp=38, max_hp=38, ac=16, attack_modifier=5)
 ]
-result = run_generated_encounter(party, candidates, Difficulty.MEDIUM, seed=123)
+result = run_generated_encounter(
+    party, candidates, Difficulty.MEDIUM, seed=123, allow_fixture_defaults=True
+)
 print(result["outcome"], result["rounds"], result["xp_awarded"])
 ```
+
+Combat execution is strict by default: each selected candidate's `facets` must
+contain explicit normalized `hp`, `ac`, `attack_modifier`, `damage`, and `stance`.
+Missing fields and unknown damage types raise errors instead of inventing combat
+statistics. Candidate name, CR, and XP remain authoritative over facet metadata.
+Unverified source-specific layouts such as `armor_class` / `hit_points` require
+an explicit source adapter; compatibility with the remote Bible is not established.
+
+Omit `allow_fixture_defaults` for explicit combat data. The same opt-in is
+supported by `CombatantState.from_candidate`.
+Fixture mode supplies demo defaults only for absent fields; it preserves provided
+normalized values and does not repair malformed explicit damage blocks.
+The selection seed does not seed combat dice; pass a `SeededDiceSource` as `dice`
+when reproducible combat is needed. Initiative rolling, reward idempotency, and
+external GPF event-schema conformance remain separate pending work.
 
 Record a single attack and replay it from the dice it consumed:
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from fractions import Fraction
 from typing import Any
 
 from audio_synth import generate_all_sfx
@@ -404,69 +405,100 @@ class CombatantState:
 
     @classmethod
     def from_candidate(
-        cls, candidate: CreatureCandidate | Mapping[str, Any], count_index: int = 1
+        cls,
+        candidate: CreatureCandidate | Mapping[str, Any],
+        count_index: int = 1,
+        *,
+        allow_fixture_defaults: bool = False,
     ) -> CombatantState:
+        """Adapt explicit normalized combat facets, rejecting incomplete records.
+
+        ``allow_fixture_defaults=True`` enables synthetic demo statistics only.
+        Unknown source layouts (including unverified Bible facets) must be
+        normalized by their source adapter before using this strict boundary.
+        """
+        if not isinstance(allow_fixture_defaults, bool):
+            raise TypeError("allow_fixture_defaults must be a boolean")
         if isinstance(candidate, CreatureCandidate):
             base_name = candidate.name
             xp = candidate.xp
             cr_raw = candidate.cr
             facets = dict(candidate.facets)
         else:
-            base_name = str(candidate.get("name", "Unknown Creature"))
-            xp = int(candidate.get("xp", candidate.get("xp_per_unit", 50)))
-            cr_raw = candidate.get("cr", "")
+            required = ("name", "cr")
+            if not allow_fixture_defaults:
+                for key in required:
+                    if key not in candidate:
+                        raise ValueError(f"Candidate missing required field: {key}")
+                if "xp" not in candidate and "xp_per_unit" not in candidate:
+                    raise ValueError("Candidate missing required field: xp or xp_per_unit")
+            base_name = candidate.get("name", "Unknown Creature")
+            xp = candidate.get("xp", candidate.get("xp_per_unit", 50))
+            cr_raw = candidate.get("cr", 0)
             facets = dict(candidate.get("facets", {}))
 
-        cr = _parse_cr(cr_raw)
+        if not isinstance(base_name, str) or not base_name.strip():
+            raise ValueError("Candidate name must be a non-empty string")
+        if isinstance(xp, bool) or not isinstance(xp, int) or xp < 0:
+            raise ValueError("Candidate xp must be a nonnegative integer")
+        if allow_fixture_defaults and cr_raw == "":
+            cr_raw = 0
+        try:
+            cr = float(Fraction(str(cr_raw)))
+        except (ValueError, ZeroDivisionError, OverflowError) as exc:
+            raise ValueError(f"Candidate {base_name!r} has invalid cr: {cr_raw!r}") from exc
+        if cr < 0:
+            raise ValueError(f"Candidate {base_name!r} cr must be nonnegative")
         name = f"{base_name} #{count_index}" if count_index > 1 else base_name
 
-        if "hp" in facets and "ac" in facets:
-            sb = dict(facets)
-            sb["name"] = name
-            sb["xp"] = xp
-            sb["cr"] = cr
-            if "attack_modifier" not in sb:
-                sb["attack_modifier"] = int(
-                    facets.get("attack_modifier", 5 if cr >= 2.0 else 4 if cr >= 0.25 else 3)
-                )
-            if "damage" not in sb:
-                dmg_type = _parse_damage_type(facets.get("damage_type", DamageType.SLASHING))
-                dmg_dice = int(facets.get("damage_dice", 2 if cr >= 1.0 else 1))
-                dmg_sides = int(facets.get("damage_sides", 8 if cr >= 1.0 else 6))
-                dmg_mod = int(facets.get("damage_modifier", 3 if cr >= 1.0 else 2))
-                sb["damage"] = {
-                    "dice": dmg_dice,
-                    "sides": dmg_sides,
-                    "modifier": dmg_mod,
-                    "type": dmg_type.value if isinstance(dmg_type, DamageType) else str(dmg_type),
-                }
-            if "stance" not in sb:
-                sb["stance"] = str(facets.get("stance", "aggressive"))
-            return cls.from_state_block(sb)
+        sb = dict(facets)
+        sb.update(name=name, xp=xp, cr=cr)
+        if allow_fixture_defaults:
+            sb.setdefault("hp", max(7, int(xp * 0.15 + 6)))
+            sb.setdefault("ac", 14 if cr >= 2.0 else 13 if cr >= 0.25 else 12)
+            sb.setdefault("attack_modifier", 5 if cr >= 2.0 else 4 if cr >= 0.25 else 3)
+            sb.setdefault("damage", {
+                "dice": facets.get("damage_dice", 2 if cr >= 1.0 else 1),
+                "sides": facets.get("damage_sides", 8 if cr >= 1.0 else 6),
+                "modifier": facets.get("damage_modifier", 3 if cr >= 1.0 else 2),
+                "type": facets.get("damage_type", DamageType.SLASHING),
+            })
+            sb.setdefault("stance", "aggressive")
 
-        hp_val = int(facets.get("hp", max(7, int(xp * 0.15 + 6))))
-        ac_val = int(facets.get("ac", 14 if cr >= 2.0 else 13 if cr >= 0.25 else 12))
-        att_mod = int(facets.get("attack_modifier", 5 if cr >= 2.0 else 4 if cr >= 0.25 else 3))
-        dmg_type = _parse_damage_type(facets.get("damage_type", DamageType.SLASHING))
-        dmg_dice = int(facets.get("damage_dice", 2 if cr >= 1.0 else 1))
-        dmg_sides = int(facets.get("damage_sides", 8 if cr >= 1.0 else 6))
-        dmg_mod = int(facets.get("damage_modifier", 3 if cr >= 1.0 else 2))
-        stance = str(facets.get("stance", "aggressive"))
-
-        return cls(
-            name=name,
-            current_hp=hp_val,
-            max_hp=hp_val,
-            ac=ac_val,
-            attack_modifier=att_mod,
-            damage_dice_count=dmg_dice,
-            damage_die_sides=dmg_sides,
-            damage_modifier=dmg_mod,
-            damage_type=dmg_type,
-            cr=cr,
-            xp=xp,
-            stance=stance,
-        )
+        missing = [key for key in ("hp", "ac", "attack_modifier", "damage", "stance")
+                   if key not in sb]
+        if missing:
+            raise ValueError(
+                f"Candidate {base_name!r} missing normalized combat facets: {', '.join(missing)}. "
+                "Provide explicit combat data; allow_fixture_defaults=True is for demos only."
+            )
+        integer_fields = [("ac", sb["ac"]), ("attack_modifier", sb["attack_modifier"])]
+        hp = sb["hp"]
+        if isinstance(hp, Mapping):
+            integer_fields.extend((f"hp.{key}", hp[key]) for key in ("current", "max") if key in hp)
+        else:
+            integer_fields.append(("hp", hp))
+        damage = sb["damage"]
+        if isinstance(damage, Mapping):
+            integer_fields.extend(
+                (f"damage.{key}", damage[key])
+                for key in ("dice", "sides", "modifier") if key in damage
+            )
+        for key, value in integer_fields:
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"Candidate {base_name!r} {key} must be an integer")
+        stance = sb["stance"]
+        if not isinstance(stance, str) or stance.strip().lower() not in {"aggressive", "defensive"}:
+            raise ValueError(f"Candidate {base_name!r} stance must be aggressive or defensive")
+        if isinstance(damage, Mapping) and "type" in damage:
+            damage_type = damage["type"]
+            known_types = {label.casefold() for member in DamageType
+                           for label in (member.name, member.value)}
+            if not isinstance(damage_type, DamageType) and (
+                str(damage_type).strip().casefold() not in known_types
+            ):
+                raise ValueError(f"Candidate {base_name!r} has unknown damage.type: {damage_type!r}")
+        return cls.from_state_block(sb)
 
 
 def select_target(
@@ -631,8 +663,9 @@ def run_generated_encounter(
     seed: int | None = None,
     dice: DiceSource | None = None,
     max_rounds: int = 50,
+    allow_fixture_defaults: bool = False,
 ) -> dict[str, Any]:
-    """Generate an encounter using encounter_generator.py and execute it via the core loop."""
+    """Generate and execute combat; synthetic candidate stats require explicit demo opt-in."""
     if not party:
         raise ValueError("party cannot be empty")
 
@@ -650,7 +683,9 @@ def run_generated_encounter(
     for m in monsters:
         name = str(m.get("name", "Unknown"))
         counts_by_name[name] = counts_by_name.get(name, 0) + 1
-        combatant = CombatantState.from_candidate(m, count_index=counts_by_name[name])
+        combatant = CombatantState.from_candidate(
+            m, count_index=counts_by_name[name], allow_fixture_defaults=allow_fixture_defaults
+        )
         enemy_combatants.append(combatant)
 
     combat_result = run_encounter(party, enemy_combatants, dice=dice, max_rounds=max_rounds)
