@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import base64
 import json
-import urllib.error
-import urllib.request
 from typing import Any
 
 from game_foundation import validate_agentsurface_v01
@@ -30,7 +28,7 @@ def validate_presentation(data: dict[str, Any]) -> dict[str, Any]:
     surface = data["surface"]
     try:
         validate_agentsurface_v01(surface, root="root")
-    except Exception as exc:
+    except (TypeError, ValueError, KeyError) as exc:
         raise GenerationError(f"invalid surface blueprint: {exc}") from exc
 
     # Security: check that actions do not invent arbitrary mutating intents
@@ -42,7 +40,7 @@ def validate_presentation(data: dict[str, Any]) -> dict[str, Any]:
     for component in surface.get("components", []):
         if component.get("type") == "Image":
             src = component.get("props", {}).get("src", "")
-            if src.startswith("http://") or src.startswith("https://"):
+            if src.startswith(("http://", "https://")):
                 raise GenerationError(f"remote image urls not permitted in generated UI: {src!r}")
 
     return data
@@ -105,7 +103,7 @@ class GeminiProvider:
                 mime_type = part["inlineData"].get("mimeType", "image/png")
                 try:
                     return base64.b64decode(data), mime_type
-                except Exception as exc:
+                except (ValueError, TypeError) as exc:
                     raise GenerationError(f"Invalid base64 image data: {exc}") from exc
 
         raise GenerationError("No inline image data found in response")
@@ -121,7 +119,7 @@ class GeminiProvider:
                 if item.get("type") == "audio" and "data" in item:
                     try:
                         return base64.b64decode(item["data"]), "audio/mpeg"
-                    except Exception as exc:
+                    except (ValueError, TypeError) as exc:
                         raise GenerationError(f"Invalid base64 audio data: {exc}") from exc
 
         raise GenerationError("No audio data found in response")

@@ -33,6 +33,8 @@ from typing import Any
 #: pass: that removes the guarantee the gate exists to provide.
 FLOORS: dict[str, float] = {
     "audio_synth.py": 94.0,
+    "campaign_core.py": 91.0,
+    "campaign_mcp.py": 69.0,
     "combat_events.py": 93.0,
     "combat_log.py": 95.0,
     "combat_runner.py": 90.0,
@@ -43,10 +45,16 @@ FLOORS: dict[str, float] = {
     "d20_rules.py": 98.0,
     "encounter_ai.py": 96.0,
     "encounter_generator.py": 91.0,
+    "engine/__init__.py": 100.0,
+    "engine/generative_ui.py": 96.0,
+    "engine/story_engine.py": 74.0,
+    "engine/world_generator.py": 98.0,
     "game_foundation.py": 98.0,
     "genui.py": 98.0,
+    "live_generation.py": 79.0,
     "scripts/verify_release.py": 98.0,
     "tui_runner.py": 97.0,
+    "turn_orchestrator.py": 87.0,
     "web/build_demo.py": 87.0,
     "vr_server.py": 98.0,
 }

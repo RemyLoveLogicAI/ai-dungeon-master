@@ -17,9 +17,10 @@ import json
 import re
 import sqlite3
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 
 class ConflictError(ValueError):
@@ -42,7 +43,7 @@ def _token(value: Any, label: str) -> None:
 
 def _campaign_id(value: Any) -> None:
     if not isinstance(value, str):
-        raise ValueError("Invalid campaign id")
+        raise TypeError("Invalid campaign id")
     try:
         parsed = uuid.UUID(value)
     except (ValueError, AttributeError) as exc:
@@ -57,13 +58,17 @@ def _revision(value: Any) -> None:
 
 
 def _action(value: Any) -> None:
-    if not isinstance(value, str) or not value.strip() or len(value) > 100_000:
+    if not isinstance(value, str):
+        raise TypeError("Invalid action")
+    if not value.strip():
+        raise ValueError("Invalid action")
+    if len(value) > 100_000:
         raise ValueError("Invalid action")
 
 
 def _encode(state: Any) -> str:
     if not isinstance(state, dict):
-        raise ValueError("State must be an object")
+        raise TypeError("State must be an object")
     try:
         serialized = json.dumps(state, ensure_ascii=False, allow_nan=False)
         if len(serialized.encode("utf-8")) > _MAX_STATE_BYTES:
@@ -218,7 +223,9 @@ class CampaignStore:
     ) -> bool:
         _campaign_id(campaign_id)
         _revision(revision)
-        if not isinstance(kind, str) or not _MEDIA_KIND.fullmatch(kind):
+        if not isinstance(kind, str):
+            raise TypeError("Invalid media kind")
+        if _MEDIA_KIND.fullmatch(kind) is None:
             raise ValueError("Invalid media kind")
         _encode(payload)
         with self._connection() as connection:
@@ -228,7 +235,7 @@ class CampaignStore:
                 return False
             media = current.get("media", {})
             if not isinstance(media, dict):
-                raise ValueError("Campaign media must be an object")
+                raise TypeError("Campaign media must be an object")
             current["media"] = {**media, kind: payload}
             connection.execute(
                 "UPDATE campaigns SET state=? WHERE id=? AND revision=?",

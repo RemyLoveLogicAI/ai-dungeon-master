@@ -1,6 +1,5 @@
 """Protocol and shared-state adapter checks; never calls a model provider."""
 
-import io
 import json
 import subprocess
 import sys
@@ -92,13 +91,43 @@ def test_transport_sanitizes_failure_and_rejects_remote_urls():
     assert "credentials" not in json.dumps(result)
 
 
+def test_listed_create_and_reset_are_not_dispatched():
+    """Both tools are advertised, but the dispatcher has no handler for them."""
+    client = FakeClient()
+    server = ready(client)
+    for name, args in (("dm_create_campaign", {}), ("dm_reset", {"campaign_id": "abc"}),
+                       ("dm_unknown", {})):
+        result = call(server, name, args)["result"]
+        assert result["isError"]
+        assert name in result["content"][0]["text"]
+    assert not client.calls
+
+
+def test_tool_failures_stay_inside_the_result_envelope():
+    class Broken(FakeClient):
+        def request(self, method, path, body=None):
+            raise RuntimeError("secret downstream detail")
+
+    server = ready(Broken())
+    for name, args in (
+        ("dm_get_campaign", {"campaign_id": "abc"}),
+        ("dm_status", {}),
+        ("dm_act", {"campaign_id": "abc", "revision": 1, "request_id": "r",
+                     "action": "look", "intent": "act"}),
+    ):
+        result = call(server, name, args)["result"]
+        assert result["isError"]
+        assert "secret" not in json.dumps(result)
+
+
 def test_stdio_is_only_newline_json_and_notifications_are_silent():
     messages = ["{bad", json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
                                     "params": {"protocolVersion": "2025-11-25"}}),
                 json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
                 json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})]
     result = subprocess.run([sys.executable, "campaign_mcp.py"],
-                            input="\n".join(messages) + "\n", capture_output=True, text=True)
+                            input="\n".join(messages) + "\n", capture_output=True, text=True,
+                            check=False)
     replies = [json.loads(line) for line in result.stdout.splitlines()]
     assert result.returncode == 0
     assert len(replies) == 3

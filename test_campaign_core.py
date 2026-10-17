@@ -95,9 +95,17 @@ def test_state_validation_and_revision_types(tmp_path):
         store.create({"x": float("nan")})
     with pytest.raises(ValueError):
         store.create({"x": "x" * 2_100_000})
+    with pytest.raises(TypeError):
+        store.create([])
     cid = store.create({})["id"]
+    with pytest.raises(TypeError):
+        store.commit(None, 0, "r", "look", {})
     with pytest.raises(ValueError):
         store.commit(cid, True, "r", "look", {})
+    with pytest.raises(ValueError):
+        store.commit(cid, 0, "r", "   ", {})
+    with pytest.raises(TypeError):
+        store.update_media(cid, 0, None, {})
     with pytest.raises(ValueError):
         store.update_media(cid, 0, "../image", {})
 
