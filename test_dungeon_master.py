@@ -8,6 +8,8 @@ import audio_synth
 from audio_synth import default_audio_dir, generate_all_sfx
 from d20_rules import AdvantageMode, roll_d20
 from encounter_ai import AIStance, CombatActionType, EncounterEnemy
+from engine.story_engine import StoryEngine
+from engine.world_generator import generate_procedural_world
 
 
 class TestDungeonMaster(unittest.TestCase):
@@ -80,6 +82,28 @@ class TestDungeonMaster(unittest.TestCase):
                     self.assertEqual(wav_file.getsampwidth(), 2)
                     self.assertEqual(wav_file.getframerate(), 44100)
                     self.assertGreater(wav_file.getnframes(), 0)
+
+
+    def test_world_generation(self):
+        world = generate_procedural_world(seed=42)
+        self.assertTrue(len(world.name) > 0)
+        self.assertGreaterEqual(len(world.locations), 5)
+        self.assertGreaterEqual(len(world.factions), 3)
+        self.assertTrue(any(loc.id == world.current_location_id for loc in world.locations))
+
+    def test_story_engine_generates_ui_package(self):
+        engine = StoryEngine()
+        ui = engine.process_turn("explore the ruins")
+        self.assertIsNotNone(ui.narrative_text)
+        self.assertGreaterEqual(len(ui.action_deck), 2)
+        self.assertIsNotNone(ui.soundtrack)
+
+    def test_story_engine_combat_flow(self):
+        engine = StoryEngine()
+        combat_ui = engine.process_turn("attack with sunforged blade")
+        self.assertIsNotNone(combat_ui.tactical_grid)
+        self.assertGreaterEqual(len(combat_ui.tactical_grid.combatants), 2)
+        self.assertEqual(combat_ui.suggested_ui_layout, "COMBAT")
 
 
 if __name__ == "__main__":

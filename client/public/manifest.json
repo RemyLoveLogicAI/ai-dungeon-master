@@ -1,0 +1,16 @@
+{
+  "short_name": "Aegis DM",
+  "name": "Aegis AI Dungeon Master",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#07090e",
+  "theme_color": "#07090e",
+  "display": "standalone",
+  "orientation": "any"
+}
