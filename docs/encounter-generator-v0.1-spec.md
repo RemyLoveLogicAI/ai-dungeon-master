@@ -15,7 +15,7 @@ This specification defines the contract, algorithm, data shapes, and operational
 ### 1.1 Local Scope vs. External Conformance Boundary
 - **Implemented Local Contract:** The generator provides seeded, reproducible encounter generation conforming to standard D&D 5th Edition encounter math (Dungeon Master's Guide p. 82).
 - **`gpf/encounter.v1` Status:** The output format identifies itself as `gpf/encounter.v1`. In the current repository, this is an **internal, minimal version label and dictionary payload**. Formal external conformance against an authoritative GPF (Generative Platform Foundation) schema is **unverified** because no formal external GPF JSON schema or validator is present in this worktree.
-- **D&D Bible & SRD Data Decoupling:** The generator is completely decoupled from any hardcoded creature database or specific SRD release. It accepts an arbitrary sequence of `CreatureCandidate` records. Caller-supplied `facets` (e.g. lore, biome, sensory cues, statblock references) are passed through verbatim. Full integration with external candidate datasets (such as a 949-record SRD 5.1 Bible or facet catalogs) represents a planned integration boundary and is not baked into the Python runtime.
+- **D&D Bible & SRD Data Decoupling:** The generator is completely decoupled from any hardcoded creature database or specific SRD release. It accepts an arbitrary sequence of `CreatureCandidate` records. Caller-supplied `facets` (e.g. lore, biome, sensory cues, statblock references) are passed through verbatim. Full integration with external candidate datasets (such as the reported 949-record SRD 5.1 Bible or facet catalogs) remains planned and unverified. The official SRD 5.1 release is an unstructured CC BY 4.0 PDF and does not itself verify that corpus or facet schema; no local corpus or loader exists. See the [evidence record](dnd-bible-facet-review-pack-2026-10-15.md) for official sources and the unverified-report distinction.
 
 ---
 
@@ -250,8 +250,8 @@ Existing verification in `test_encounter_generator.py` validates the following i
 |     - Validate output envelope against official GPF JSON    |
 |       schema once published.                                |
 |  2. SRD 5.1 Bible Ingestion:                                |
-|     - Filter candidates from 949 SRD records by environment,|
-|       CR, tags, and theme.                                  |
+|     - Ingest the reported 949-record SRD 5.1 corpus (not verified or |
+|       present locally) and filter by source-provided facets.         |
 |  3. Downstream Consumers:                                   |
 |     - Feed generated monsters directly to combat_runner.py  |
 |       and encounter_ai.py (EncounterEnemy).                 |

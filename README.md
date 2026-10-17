@@ -91,9 +91,14 @@ run_simulated_encounter(dice=SeededDiceSource(7))
 ### Generate an XP-budget encounter
 
 `encounter_generator.py` uses standard D&D 5e XP thresholds to select an
-encounter from explicit caller-provided candidates. No creature catalog or D&D
-Bible data is bundled; each candidate's `facets` mapping is copied unchanged
-into the output under the `gpf/encounter.v1` contract.
+encounter from explicit caller-provided candidates. No creature catalog, D&D
+Bible corpus, or loader is bundled. The official SRD 5.1 is an unstructured
+PDF under CC BY 4.0; it does not verify the reported 949-record corpus or any
+facet schema. Bible ingestion remains pending and unverified. Each candidate's
+`facets` mapping is copied unchanged into the output under the `gpf/encounter.v1`
+contract. See the [evidence record](docs/dnd-bible-facet-review-pack-2026-10-15.md)
+for official sources, required attribution, and the distinction between
+reported status and verified data.
 
 ```python
 from encounter_generator import CreatureCandidate, Difficulty, generate_encounter
