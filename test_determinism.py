@@ -42,7 +42,7 @@ def request(**overrides) -> AttackRequest:
         "damage_type": DamageType.SLASHING,
     }
     fields.update(overrides)
-    return AttackRequest(**fields)
+    return AttackRequest(**fields)  # type: ignore[arg-type]
 
 
 class TestDiceSources(unittest.TestCase):

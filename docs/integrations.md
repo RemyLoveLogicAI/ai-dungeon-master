@@ -25,15 +25,46 @@ compatibility for these names in this repository yet.
 | `dm/render_surface` | An orchestration adapter maps current campaign/simulation state to a constrained AgentSurface v0.1 blueprint; AgentSurface validates/renders the ephemeral UI. |
 | `dm/synthesize_audio` | This repo exposes current procedural WAV synthesis behind a bounded request and returns cue metadata/asset output; provider-based ambient/audio generation is not present. |
 
-Before implementing these, define versioned input/output schemas, encounter
-identity and ownership, idempotency and retry semantics, error handling,
-request-size/time limits, and a replay-safe random source. Injectable dice
-sources now exist (`d20_rules.DiceSource`), so a caller can opt into
-reproducible simulation; the default still delegates to the module-level
-`random` for backward compatibility, while audio synthesis draws from its own
-private generator so it cannot perturb a simulated roll. MCP tool names should
-be confirmed with the consuming projects and must not be treated as committed
-cross-repo APIs based only on this proposal.
+Four versioned JSON Schemas and local Python validators now define a proposed
+payload boundary: `encounter-init-request/1` and `encounter-init-result/1`
+describe the engine's encounter initialization inputs and result projection;
+`encounter-turn-request/1` and `encounter-turn-result/1` describe a single
+attack request and its recorded event/result. These are structural contracts
+only, not consumer-confirmed APIs. The schemas are under `schemas/`, and the
+local validators are in `encounter_payload_schema.py`; there is still no
+runtime adapter, MCP server, tool registration, or `dm/*` callable API here.
+
+The payloads contain only per-encounter simulation state and attack data.
+MCP Games remains authoritative for campaign/story/context, ownership, and
+persisted session state; this repository owns encounter simulation. The schema
+limits that have no canonical engine maximum (including combatant counts,
+string lengths, dice bounds, and request/result sizes) are proposed defaults,
+not consumer-approved resource limits. The `max_rounds` request field is
+optional; the engine default is 50. `encounter-turn-request/1` models one
+`AttackRequest`, not a complete multi-action turn.
+
+The contracts do not define encounter identity, idempotency/retry behavior,
+consumer ownership checks, error semantics, or adapter resource/time limits.
+Those decisions and testing remain prerequisites before implementing
+`dm/init_encounter` or `dm/resolve_turn`. Injectable dice sources now exist
+(`d20_rules.DiceSource`), so a caller can opt into reproducible simulation;
+the default still delegates to the module-level `random` for backward
+compatibility, while audio synthesis draws from its own private generator.
+Tool names must be confirmed with consuming projects before being treated as
+committed cross-repo APIs.
+
+### Adapter-readiness gate matrix
+
+To prevent conflating local simulation behavior with distributed host integration,
+the boundary separates what this repository verifies internally from the
+prerequisites that require explicit consumer agreement and cross-project testing:
+
+| Boundary Area | In-Repo Coverage (Verified) | Consumer Integration Requirement (Open) |
+|---|---|---|
+| **Replay vs. Idempotency** | Deterministic re-simulation from recorded rolls/events (`combat_events.py`, `d20_rules.DiceSource`). A replay log sequence is strictly re-execution logic, not request idempotency. | Duplicate/retry delivery semantics, client request token caching, idempotency key lifecycle, and duplicate call detection on network retries. |
+| **Authority & Ownership** | Authoritative mechanical simulation scoped strictly to one encounter's state and active combatants. | Tenant/user auth checks, campaign/story ownership verification, and transaction ordering between campaign persistence and encounter mutation. |
+| **Validation & Error Handling** | Fail-closed payload validation rejecting missing, extra, or malformed fields with local `PayloadValidationError` (`encounter_payload_schema.py`). Local exceptions are not MCP responses. | Standardized MCP error envelope mapping, application error codes (e.g. unknown encounter, invalid actor), and recovery behavior when host persistence fails after an encounter mutation. |
+| **Resource & Boundary Limits** | Proposed schema structural bounds (combatant counts, name lengths, dice bounds). These are engine defaults, not consumer-approved limits. | Transport, latency, request timeout, payload byte caps, and rate limits negotiated against host limits, backed by integration boundary tests. |
 
 Adapter contract identifiers are exported as
 `MCP_GAMES_ADAPTER_VERSION` (`mcp-games-game-definition/1`) and

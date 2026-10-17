@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/RemyLoveLogicAI/ai-dungeon-master/main/schemas/encounter-turn-request-1.schema.json",
+  "title": "encounter-turn-request/1",
+  "description": "Proposed request for one attack resolution using the serialized AttackRequest fields.",
+  "type": "object",
+  "required": ["version", "request"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": "encounter-turn-request/1" },
+    "request": { "$ref": "#/$defs/attackRequest" }
+  },
+  "$defs": {
+    "attackRequest": {
+      "type": "object",
+      "required": ["attacker", "target", "attackModifier", "targetAc", "damageDiceCount", "damageDieSides", "damageModifier", "damageType", "advantage", "cover", "isIncapacitatedOrUnconscious"],
+      "additionalProperties": false,
+      "properties": {
+        "attacker": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "target": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "attackModifier": { "type": "integer", "minimum": -100, "maximum": 100 },
+        "targetAc": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "damageDiceCount": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "damageDieSides": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "damageModifier": { "type": "integer", "minimum": -100, "maximum": 100 },
+        "damageType": { "enum": ["Slashing", "Piercing", "Bludgeoning", "Fire", "Cold", "Lightning", "Thunder", "Poison", "Acid", "Psychic", "Radiant", "Necrotic", "Force"] },
+        "advantage": { "enum": ["Normal", "Advantage", "Disadvantage"] },
+        "cover": { "enum": ["None", "Half", "Three-Quarters", "Total"] },
+        "isIncapacitatedOrUnconscious": { "type": "boolean" }
+      }
+    }
+  }
+}

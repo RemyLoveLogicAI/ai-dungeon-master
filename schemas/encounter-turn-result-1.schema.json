@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/RemyLoveLogicAI/ai-dungeon-master/main/schemas/encounter-turn-result-1.schema.json",
+  "title": "encounter-turn-result/1",
+  "description": "Proposed result for one recorded attack, using existing AttackEvent and AttackResult JSON vocabulary.",
+  "type": "object",
+  "required": ["version", "event", "result"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": "encounter-turn-result/1" },
+    "event": {
+      "type": "object",
+      "required": ["sequence", "type", "schema", "request", "rolls"],
+      "additionalProperties": false,
+      "properties": {
+        "sequence": { "type": "integer", "minimum": 1 },
+        "type": { "const": "attack_resolved" },
+        "schema": { "const": "combat-attack-event/1" },
+        "request": { "$ref": "#/$defs/attackRequest" },
+        "rolls": { "type": "array", "maxItems": 102, "items": { "type": "integer", "minimum": 1, "maximum": 100 }, "anyOf": [{ "maxItems": 0 }, { "minItems": 2 }] }
+      }
+    },
+    "result": {
+      "type": "object",
+      "required": ["schema", "attacker", "target", "isHit", "isCritical", "damageDealt", "targetAc", "d20Roll", "total", "damageType", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "schema": { "const": "combat-attack-result/1" },
+        "attacker": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "target": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "isHit": { "type": "boolean" },
+        "isCritical": { "type": "boolean" },
+        "damageDealt": { "type": "integer", "minimum": 0, "maximum": 20100 },
+        "targetAc": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "d20Roll": { "type": "integer", "minimum": 0, "maximum": 20 },
+        "total": { "type": "integer", "minimum": -100, "maximum": 200 },
+        "damageType": { "enum": ["Slashing", "Piercing", "Bludgeoning", "Fire", "Cold", "Lightning", "Thunder", "Poison", "Acid", "Psychic", "Radiant", "Necrotic", "Force"] },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      }
+    }
+  },
+  "$defs": {
+    "attackRequest": {
+      "type": "object",
+      "required": ["attacker", "target", "attackModifier", "targetAc", "damageDiceCount", "damageDieSides", "damageModifier", "damageType", "advantage", "cover", "isIncapacitatedOrUnconscious"],
+      "additionalProperties": false,
+      "properties": {
+        "attacker": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "target": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "attackModifier": { "type": "integer", "minimum": -100, "maximum": 100 },
+        "targetAc": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "damageDiceCount": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "damageDieSides": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "damageModifier": { "type": "integer", "minimum": -100, "maximum": 100 },
+        "damageType": { "enum": ["Slashing", "Piercing", "Bludgeoning", "Fire", "Cold", "Lightning", "Thunder", "Poison", "Acid", "Psychic", "Radiant", "Necrotic", "Force"] },
+        "advantage": { "enum": ["Normal", "Advantage", "Disadvantage"] },
+        "cover": { "enum": ["None", "Half", "Three-Quarters", "Total"] },
+        "isIncapacitatedOrUnconscious": { "type": "boolean" }
+      }
+    }
+  }
+}

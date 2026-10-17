@@ -47,11 +47,16 @@ where possible.
   because no second envelope version exists yet, and the schema is applied only
   from Python - another language's consumer is expected to run its own validator
   over the published artifact.
-- **Open:** separate authoritative campaign state in MCP Games from
-  per-encounter engine state in this repository; define compact validated
-  request/result schemas shared with the consumer.
-- Define `dm/init_encounter` and `dm/resolve_turn` as versioned adapters only
-  after idempotency, error behavior, ownership, and resource limits are tested.
+- **Implemented:** define the proposed versioned, locally validated request/result
+  payload schemas for encounter initialization and one attack resolution; these
+  contracts do not transfer campaign authority or establish consumer-confirmed APIs.
+  MCP Games remains authoritative for campaign/story/context and persistence.
+- **Open:** resolve and test adapter-readiness gates with the MCP Games
+  consumer before defining `dm/init_encounter` and `dm/resolve_turn` adapters:
+  duplicate/retry semantics, ownership/auth and persistence ordering,
+  MCP-facing error behavior (including failure after mutation), and adapter
+  transport/time/size/rate limits. Local replay and proposed schema bounds do
+  not settle these integration decisions.
 - Keep the D20 scenario here as a reference fixture; narrative/campaign
   authoring, context access, and persisted session state stay in MCP Games.
 

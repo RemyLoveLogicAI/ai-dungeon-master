@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/RemyLoveLogicAI/ai-dungeon-master/main/schemas/encounter-init-request-1.schema.json",
+  "title": "encounter-init-request/1",
+  "description": "Proposed boundary contract for initializing an encounter simulation in ai-dungeon-master. This payload separates per-encounter simulation state from consumer campaign authority.",
+  "type": "object",
+  "required": ["version", "party", "enemies"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": "encounter-init-request/1",
+      "description": "Schema version marker for encounter initialization requests."
+    },
+    "party": {
+      "type": "array",
+      "description": "Party combatant state blocks. Grounded minimum 1 combatant; upper bound of 32 is proposed.",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "$ref": "#/$defs/combatantState" }
+    },
+    "enemies": {
+      "type": "array",
+      "description": "Enemy combatant state blocks. Grounded minimum 1 combatant; upper bound of 64 is proposed.",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/combatantState" }
+    },
+    "max_rounds": {
+      "type": "integer",
+      "description": "Optional round limit for the encounter simulation. Engine defaults to 50; bounds 1..500 are proposed.",
+      "minimum": 1,
+      "maximum": 500
+    }
+  },
+  "$defs": {
+    "combatantState": {
+      "type": "object",
+      "description": "A single combatant state block matching CombatantState.to_state_block / from_state_block.",
+      "required": [
+        "name",
+        "hp",
+        "ac",
+        "attack_modifier",
+        "damage",
+        "cr",
+        "xp",
+        "stance"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100,
+          "description": "Combatant name. Non-empty; max 100 characters is proposed."
+        },
+        "hp": {
+          "type": "object",
+          "description": "Hit points specification. Current must be nonnegative; max must be positive.",
+          "required": ["current", "max"],
+          "additionalProperties": false,
+          "properties": {
+            "current": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            "formula": {
+              "type": "string",
+              "maxLength": 100
+            }
+          }
+        },
+        "ac": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Armor Class. Grounded minimum 0; max 100 is proposed."
+        },
+        "ac_source": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "attack_modifier": {
+          "type": "integer",
+          "minimum": -100,
+          "maximum": 100,
+          "description": "Attack bonus added to d20 attack rolls. Range -100..100 is proposed."
+        },
+        "damage": {
+          "type": "object",
+          "description": "Damage dice and profile. Dice count and sides must be positive.",
+          "required": ["dice", "sides", "modifier", "type"],
+          "additionalProperties": false,
+          "properties": {
+            "dice": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "sides": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "modifier": {
+              "type": "integer",
+              "minimum": -100,
+              "maximum": 100
+            },
+            "type": {
+              "enum": [
+                "slashing",
+                "piercing",
+                "bludgeoning",
+                "fire",
+                "cold",
+                "lightning",
+                "thunder",
+                "poison",
+                "acid",
+                "psychic",
+                "radiant",
+                "necrotic",
+                "force",
+                "Slashing",
+                "Piercing",
+                "Bludgeoning",
+                "Fire",
+                "Cold",
+                "Lightning",
+                "Thunder",
+                "Poison",
+                "Acid",
+                "Psychic",
+                "Radiant",
+                "Necrotic",
+                "Force"
+              ]
+            }
+          }
+        },
+        "abilities": {
+          "type": "object",
+          "description": "Ability scores or score/mod mappings.",
+          "additionalProperties": false,
+          "properties": {
+            "str": { "$ref": "#/$defs/abilityValue" },
+            "dex": { "$ref": "#/$defs/abilityValue" },
+            "con": { "$ref": "#/$defs/abilityValue" },
+            "int": { "$ref": "#/$defs/abilityValue" },
+            "wis": { "$ref": "#/$defs/abilityValue" },
+            "cha": { "$ref": "#/$defs/abilityValue" }
+          }
+        },
+        "cr": {
+          "description": "Challenge rating as numeric float/int or fraction string like '1/4'.",
+          "anyOf": [
+            {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            {
+              "type": "string",
+              "maxLength": 10,
+              "pattern": "^[0-9]+(/[0-9]+)?$"
+            }
+          ]
+        },
+        "xp": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "description": "Experience point award. Grounded minimum 0; max 1,000,000 is proposed."
+        },
+        "stance": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 50,
+          "description": "Combat stance (e.g. aggressive, defensive). Max length 50 is proposed."
+        },
+        "initiative": {
+          "type": "integer",
+          "minimum": -50,
+          "maximum": 50,
+          "description": "Initiative score or bonus. Range -50..50 is proposed."
+        }
+      }
+    },
+    "abilityValue": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 30
+        },
+        {
+          "type": "object",
+          "required": ["score"],
+          "additionalProperties": false,
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30
+            },
+            "mod": {
+              "type": "integer",
+              "minimum": -10,
+              "maximum": 10
+            }
+          }
+        }
+      ]
+    }
+  }
+}
