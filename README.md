@@ -126,7 +126,7 @@ validates levels, counts, candidate XP and difficulty labels. Its random search
 is a heuristic: the target difficulty is not guaranteed when available
 candidates cannot form a valid budget.
 
-Execute the generated encounter through the turn loop (`CORE-GAME-LOOP-SPEC.md`):
+Execute the generated encounter through the turn loop ([`docs/CORE-GAME-LOOP-SPEC.md`](docs/CORE-GAME-LOOP-SPEC.md)):
 
 ```python
 from combat_runner import CombatantState, run_generated_encounter

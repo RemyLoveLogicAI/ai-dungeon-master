@@ -602,10 +602,18 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
             "ac_source": "leather armor, shield",
             "attack_modifier": 4,
             "damage": {"dice": 1, "sides": 6, "modifier": 2, "type": "piercing"},
-            "abilities": {"str": 8, "dex": 14, "con": 10, "int": 10, "wis": 8, "cha": 8},
+            "abilities": {
+                "str": {"score": 8, "mod": -1},
+                "dex": {"score": 14, "mod": 2},
+                "con": {"score": 10, "mod": 0},
+                "int": {"score": 10, "mod": 0},
+                "wis": {"score": 8, "mod": -1},
+                "cha": {"score": 8, "mod": -1},
+            },
             "cr": 0.25,
             "xp": 50,
             "stance": "aggressive",
+            "initiative": 2,
         }
 
     def test_state_block_round_trip_matches_spec(self):
@@ -615,18 +623,79 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
         self.assertEqual(goblin.max_hp, 7)
         self.assertEqual(goblin.ac, 15)
         self.assertEqual(goblin.ac_source, "leather armor, shield")
+        self.assertEqual(goblin.attack_modifier, 4)
         self.assertEqual(goblin.damage_type, DamageType.PIERCING)
+        self.assertEqual(goblin.damage_dice_count, 1)
+        self.assertEqual(goblin.damage_die_sides, 6)
+        self.assertEqual(goblin.damage_modifier, 2)
         self.assertEqual(goblin.cr, 0.25)
         self.assertEqual(goblin.xp, 50)
         self.assertEqual(goblin.stance, "aggressive")
+        self.assertEqual(goblin.initiative, 2)
 
         exported = goblin.to_state_block()
         self.assertEqual(exported["name"], self.goblin_spec["name"])
         self.assertEqual(exported["hp"], self.goblin_spec["hp"])
         self.assertEqual(exported["ac"], self.goblin_spec["ac"])
+        self.assertEqual(exported["ac_source"], self.goblin_spec["ac_source"])
+        self.assertEqual(exported["attack_modifier"], self.goblin_spec["attack_modifier"])
         self.assertEqual(exported["damage"], self.goblin_spec["damage"])
+        self.assertEqual(exported["abilities"], self.goblin_spec["abilities"])
         self.assertEqual(exported["cr"], self.goblin_spec["cr"])
         self.assertEqual(exported["xp"], self.goblin_spec["xp"])
+        self.assertEqual(exported["stance"], self.goblin_spec["stance"])
+        self.assertEqual(exported["initiative"], self.goblin_spec["initiative"])
+        self.assertEqual(exported, self.goblin_spec)
+
+    def test_state_block_with_integer_abilities(self):
+        spec = {
+            "name": "Kobold",
+            "hp": {"current": 5, "max": 5, "formula": "2d6-2"},
+            "ac": 12,
+            "attack_modifier": 4,
+            "damage": {"dice": 1, "sides": 4, "modifier": 2, "type": "dagger"},
+            "abilities": {"str": 7, "dex": 15, "con": 9, "int": 8, "wis": 7, "cha": 8},
+            "cr": 0.125,
+            "xp": 25,
+            "stance": "defensive",
+        }
+        kobold = combat_runner.CombatantState.from_state_block(spec)
+        self.assertEqual(kobold.abilities["dex"], 15)
+        self.assertEqual(kobold.initiative, 2)
+        exported = kobold.to_state_block()
+        self.assertEqual(exported["abilities"]["dex"], {"score": 15, "mod": 2})
+
+    def test_state_block_missing_required_fields_validation(self):
+        required_fields = (
+            "name",
+            "hp",
+            "ac",
+            "attack_modifier",
+            "damage",
+            "cr",
+            "xp",
+            "stance",
+        )
+        for field in required_fields:
+            bad_spec = dict(self.goblin_spec)
+            del bad_spec[field]
+            with self.assertRaises(ValueError, msg=f"Should fail when missing {field}"):
+                combat_runner.CombatantState.from_state_block(bad_spec)
+
+        with self.assertRaises(ValueError):
+            combat_runner.CombatantState.from_state_block({**self.goblin_spec, "name": "   "})
+        with self.assertRaises(ValueError):
+            combat_runner.CombatantState.from_state_block({**self.goblin_spec, "hp": {"max": 10}})
+        with self.assertRaises(TypeError):
+            combat_runner.CombatantState.from_state_block({**self.goblin_spec, "hp": [1, 2, 3]})
+        with self.assertRaises(TypeError):
+            combat_runner.CombatantState.from_state_block({**self.goblin_spec, "damage": "invalid"})
+        with self.assertRaises(ValueError):
+            combat_runner.CombatantState.from_state_block(
+                {**self.goblin_spec, "damage": {"dice": 1, "sides": 6}}
+            )
+        with self.assertRaises(ValueError):
+            combat_runner.CombatantState.from_state_block({**self.goblin_spec, "xp": -10})
 
     def test_combatant_validation(self):
         with self.assertRaises(ValueError):
@@ -650,6 +719,10 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
                 attack_modifier=0,
                 damage_dice_count=0,
             )
+        with self.assertRaises(ValueError):
+            combat_runner.CombatantState(
+                name="Hero", current_hp=10, max_hp=10, ac=10, attack_modifier=0, xp=-5
+            )
 
     def test_from_candidate_fixture(self):
         candidate = CreatureCandidate("Orc", 100, "1/2", {"biome": ["hills"]})
@@ -665,6 +738,21 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
             {"name": "Wolf", "xp": 50, "cr": "1/4"}, count_index=2
         )
         self.assertEqual(combatant.name, "Wolf #2")
+
+    def test_from_candidate_precedence_over_facets(self):
+        candidate = CreatureCandidate(
+            "Goblin",
+            50,
+            "1/4",
+            {"name": "Overridden Name", "xp": 9999, "hp": 12, "ac": 14},
+        )
+        c1 = combat_runner.CombatantState.from_candidate(candidate, count_index=1)
+        self.assertEqual(c1.name, "Goblin")
+        self.assertEqual(c1.xp, 50)
+
+        c2 = combat_runner.CombatantState.from_candidate(candidate, count_index=3)
+        self.assertEqual(c2.name, "Goblin #3")
+        self.assertEqual(c2.xp, 50)
 
     def test_run_encounter_victory_flow(self):
         weak_enemy = combat_runner.CombatantState(
@@ -713,6 +801,91 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
         self.assertEqual(res["xp_awarded"], 0)
         self.assertIn("Mercy rule", res["narrative"])
 
+    def test_run_encounter_initial_zero_hp_states(self):
+        weak_enemy = combat_runner.CombatantState(
+            name="Goblin", current_hp=1, max_hp=1, ac=5, attack_modifier=0, xp=50
+        )
+        dead_pc = combat_runner.CombatantState(
+            name="Fallen Hero", current_hp=0, max_hp=10, ac=10, attack_modifier=0
+        )
+        res_pc_down = combat_runner.run_encounter([dead_pc], [weak_enemy])
+        self.assertEqual(res_pc_down["outcome"], "mercy_rule")
+        self.assertEqual(res_pc_down["rounds"], 0)
+        self.assertEqual(res_pc_down["xp_awarded"], 0)
+        self.assertEqual(res_pc_down["game_events"], [])
+
+        dead_enemy = combat_runner.CombatantState(
+            name="Defeated Goblin", current_hp=0, max_hp=5, ac=10, attack_modifier=0, xp=75
+        )
+        res_enemy_down = combat_runner.run_encounter([self.pc], [dead_enemy])
+        self.assertEqual(res_enemy_down["outcome"], "victory")
+        self.assertEqual(res_enemy_down["rounds"], 0)
+        self.assertEqual(res_enemy_down["xp_awarded"], 75)
+        self.assertEqual(res_enemy_down["game_events"], [])
+
+    def test_initiative_and_stance_targeting(self):
+        fast_enemy = combat_runner.CombatantState(
+            name="Fast Rogue",
+            current_hp=10,
+            max_hp=10,
+            ac=14,
+            attack_modifier=5,
+            initiative=20,
+            stance="defensive",
+        )
+        pc1 = combat_runner.CombatantState(
+            name="Tank",
+            current_hp=20,
+            max_hp=20,
+            ac=18,
+            attack_modifier=2,
+            initiative=5,
+        )
+        pc2 = combat_runner.CombatantState(
+            name="Wizard",
+            current_hp=8,
+            max_hp=8,
+            ac=11,
+            attack_modifier=6,
+            initiative=5,
+        )
+        res = combat_runner.run_encounter([pc1, pc2], [fast_enemy], max_rounds=1)
+        self.assertGreater(len(res["game_events"]), 0)
+        # Fast enemy acts first due to highest initiative
+        self.assertEqual(res["game_events"][0]["attacker"], "Fast Rogue")
+        # Defensive enemy targets Wizard because Wizard has higher threat (attack_modifier 6 vs 2)
+        self.assertEqual(res["game_events"][0]["target"], "Wizard")
+
+        # Now test aggressive enemy targeting lowest current HP
+        aggro_enemy = combat_runner.CombatantState(
+            name="Berserker",
+            current_hp=15,
+            max_hp=15,
+            ac=12,
+            attack_modifier=4,
+            initiative=20,
+            stance="aggressive",
+        )
+        tank = combat_runner.CombatantState(
+            name="Tank",
+            current_hp=20,
+            max_hp=20,
+            ac=18,
+            attack_modifier=2,
+            initiative=5,
+        )
+        wizard = combat_runner.CombatantState(
+            name="Wizard",
+            current_hp=8,
+            max_hp=8,
+            ac=11,
+            attack_modifier=6,
+            initiative=5,
+        )
+        res_aggro = combat_runner.run_encounter([tank, wizard], [aggro_enemy], max_rounds=1)
+        self.assertEqual(res_aggro["game_events"][0]["attacker"], "Berserker")
+        self.assertEqual(res_aggro["game_events"][0]["target"], "Wizard")  # Wizard HP 8 < Tank HP 20
+
     def test_run_generated_encounter_e2e(self):
         candidates = [
             CreatureCandidate("Goblin", 50, "1/4"),
@@ -726,8 +899,13 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
         )
         self.assertIn("encounter", res)
         self.assertEqual(res["encounter"]["version"], "gpf/encounter.v1")
+        monsters = res["encounter"]["monsters"]
+        self.assertGreater(len(monsters), 0)
+        self.assertEqual(len(res["enemies"]), len(monsters))
         self.assertIn(res["outcome"], {"victory", "mercy_rule", "stalemate"})
         self.assertIn("game_events", res)
+        self.assertGreater(len(res["game_events"]), 0)
+        self.assertTrue(all(event["type"] == "attack_resolved" for event in res["game_events"]))
 
     def test_helpers_cr_and_damage_type_parsing(self):
         self.assertEqual(combat_runner._parse_cr("1/4"), 0.25)
@@ -745,6 +923,10 @@ class TestCoreGameLoopAndAdapter(unittest.TestCase):
             combat_runner.run_encounter([], [self.pc])
         with self.assertRaises(ValueError):
             combat_runner.run_encounter([self.pc], [])
+        with self.assertRaises(ValueError):
+            combat_runner.run_encounter([self.pc], [self.pc], max_rounds=0)
+        with self.assertRaises(ValueError):
+            combat_runner.run_encounter([self.pc], [self.pc], max_rounds=-5)
         with self.assertRaises(ValueError):
             combat_runner.run_generated_encounter([], [CreatureCandidate("Orc", 100)])
 

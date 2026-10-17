@@ -1,9 +1,9 @@
 # Core Game Loop & State Spec
 
 **Status:** grounded in shipped artifacts, not a proposal.
-Anchors: D&D Bible v1 (SRD 5.1, 949 records, facet schemas in `FACETS.md`),
-Devin D20 engine (`~/workspace/kether-fused/engine/d20_rules.py`, 16/16 tests green),
-encounter-generator v0.1 (spec'd, queued behind the architecture fork).
+Anchors: encounter generation and combat loop implemented and verified locally;
+Devin D20 engine (`combat_runner.py`, `d20_rules.py`, full CI test suite green);
+external GPF / remote D&D Bible corpus integration pending (949 records, facet schemas in `FACETS.md`).
 
 ## The loop
 
@@ -70,21 +70,28 @@ proposal; the contract the game already runs on.
   "ac_source": "leather armor, shield",
   "attack_modifier": 4,
   "damage": { "dice": 1, "sides": 6, "modifier": 2, "type": "piercing" },
-  "abilities": { "str": 8, "dex": 14, "con": 10, "int": 10, "wis": 8, "cha": 8 },
+  "abilities": {
+    "str": { "score": 8, "mod": -1 },
+    "dex": { "score": 14, "mod": 2 },
+    "con": { "score": 10, "mod": 0 },
+    "int": { "score": 10, "mod": 0 },
+    "wis": { "score": 8, "mod": -1 },
+    "cha": { "score": 8, "mod": -1 }
+  },
   "cr": 0.25,
   "xp": 50,
-  "stance": "aggressive"
+  "stance": "aggressive",
+  "initiative": 2
 }
 ```
 
 Every field above maps to a Bible facet (`armor_class`, `hit_points`,
-`abilities`, `challenge_rating` + `xp`) or an engine parameter. A generator
-that emits a stat block missing any of these is emitting a sketch, not a
-combatant.
+`abilities`, `challenge_rating` + `xp`) or an engine parameter (`initiative` is
+derived from DEX mod (+2) or rolled/assigned). A generator that emits a stat block
+missing any of these is emitting a sketch, not a combatant.
 
 ## What's real vs. what's next
 
-- **Real:** D20 resolution (tested), 949-record rules corpus with saturation
-  schemas, the 5-stat combatant contract.
-- **Next:** wire encounter-generator v0.1 to the Bible corpus keyed by CR
+- **Real:** D20 resolution (tested), local encounter generation and 5-stat combatant contract.
+- **Next:** wire local encounter generator to the authoritative remote Bible corpus archive keyed by CR
   budget; feed the event stream into the surface renderer per turn.

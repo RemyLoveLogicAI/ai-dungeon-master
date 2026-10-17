@@ -245,6 +245,7 @@ class CombatantState:
     cr: float = 0.0
     xp: int = 0
     stance: str = "aggressive"
+    initiative: int = 0
 
     def __post_init__(self) -> None:
         if not self.name or not self.name.strip():
@@ -256,43 +257,94 @@ class CombatantState:
             raise ValueError(f"ac must be nonnegative, got {self.ac}")
         if self.damage_dice_count <= 0 or self.damage_die_sides <= 0:
             raise ValueError("damage dice count and sides must be positive")
+        if self.xp < 0:
+            raise ValueError(f"xp must be nonnegative, got {self.xp}")
+        self.stance = str(self.stance).strip().lower()
+        if not self.stance:
+            self.stance = "aggressive"
+        if self.initiative == 0 and self.abilities.get("dex", 10) != 10:
+            self.initiative = (self.abilities.get("dex", 10) - 10) // 2
 
     @classmethod
     def from_state_block(cls, data: Mapping[str, Any]) -> CombatantState:
-        name = str(data.get("name", "Unnamed Combatant"))
-        hp_data = data.get("hp", {})
+        required_fields = (
+            "name",
+            "hp",
+            "ac",
+            "attack_modifier",
+            "damage",
+            "cr",
+            "xp",
+            "stance",
+        )
+        for field_name in required_fields:
+            if field_name not in data:
+                raise ValueError(f"State block missing required field: {field_name}")
+
+        name = str(data["name"]).strip()
+        if not name:
+            raise ValueError("Combatant name in state block cannot be empty")
+
+        hp_data = data["hp"]
         if isinstance(hp_data, Mapping):
-            max_hp = int(hp_data.get("max", 10))
-            current_hp = int(hp_data.get("current", max_hp))
+            if "max" not in hp_data or "current" not in hp_data:
+                raise ValueError("hp mapping must contain 'current' and 'max'")
+            max_hp = int(hp_data["max"])
+            current_hp = int(hp_data["current"])
             hp_formula = str(hp_data.get("formula", ""))
-        else:
+        elif isinstance(hp_data, (int, float)):
             max_hp = int(hp_data)
             current_hp = max_hp
             hp_formula = ""
-
-        ac = int(data.get("ac", 10))
-        ac_source = str(data.get("ac_source", ""))
-        attack_modifier = int(data.get("attack_modifier", 2))
-
-        dmg_data = data.get("damage", {})
-        if isinstance(dmg_data, Mapping):
-            damage_dice = int(dmg_data.get("dice", 1))
-            damage_sides = int(dmg_data.get("sides", 6))
-            damage_mod = int(dmg_data.get("modifier", 0))
-            damage_type = _parse_damage_type(dmg_data.get("type", DamageType.SLASHING))
         else:
-            damage_dice, damage_sides, damage_mod, damage_type = 1, 6, 0, DamageType.SLASHING
+            raise TypeError(f"Invalid hp specification: {hp_data!r}")
 
-        abilities_raw = data.get("abilities", {})
-        abilities = (
-            {k.lower(): int(v) for k, v in abilities_raw.items()}
-            if isinstance(abilities_raw, Mapping)
-            else {"str": 10, "dex": 10, "con": 10, "int": 10, "wis": 10, "cha": 10}
-        )
+        ac = int(data["ac"])
+        ac_source = str(data.get("ac_source", ""))
+        attack_modifier = int(data["attack_modifier"])
 
-        cr = _parse_cr(data.get("cr", 0))
-        xp = int(data.get("xp", 0))
-        stance = str(data.get("stance", "aggressive")).lower()
+        dmg_data = data["damage"]
+        if isinstance(dmg_data, Mapping):
+            for dmg_key in ("dice", "sides", "modifier", "type"):
+                if dmg_key not in dmg_data:
+                    raise ValueError(f"damage mapping missing required field: {dmg_key}")
+            damage_dice = int(dmg_data["dice"])
+            damage_sides = int(dmg_data["sides"])
+            damage_mod = int(dmg_data["modifier"])
+            damage_type = _parse_damage_type(dmg_data["type"])
+        else:
+            raise TypeError(f"Invalid damage specification: {dmg_data!r}")
+
+        abilities: dict[str, int] = {
+            "str": 10,
+            "dex": 10,
+            "con": 10,
+            "int": 10,
+            "wis": 10,
+            "cha": 10,
+        }
+        abilities_raw = data.get("abilities")
+        if abilities_raw is not None:
+            if not isinstance(abilities_raw, Mapping):
+                raise ValueError("abilities must be a mapping")
+            for k, v in abilities_raw.items():
+                if isinstance(v, Mapping):
+                    if "score" not in v:
+                        raise ValueError(f"ability {k} mapping missing 'score'")
+                    abilities[str(k).lower()] = int(v["score"])
+                else:
+                    abilities[str(k).lower()] = int(v)
+
+        cr = _parse_cr(data["cr"])
+        xp = int(data["xp"])
+        if xp < 0:
+            raise ValueError(f"xp must be nonnegative, got {xp}")
+        stance = str(data["stance"]).strip().lower()
+
+        if "initiative" in data:
+            initiative = int(data["initiative"])
+        else:
+            initiative = (abilities.get("dex", 10) - 10) // 2
 
         return cls(
             name=name,
@@ -310,6 +362,7 @@ class CombatantState:
             cr=cr,
             xp=xp,
             stance=stance,
+            initiative=initiative,
         )
 
     def to_state_block(self) -> dict[str, Any]:
@@ -318,6 +371,14 @@ class CombatantState:
             if isinstance(self.damage_type, DamageType)
             else str(self.damage_type).lower()
         )
+        standard_abilities = {"str", "dex", "con", "int", "wis", "cha"}
+        abilities_block: dict[str, Any] = {}
+        for k, v in self.abilities.items():
+            if k.lower() in standard_abilities:
+                abilities_block[k] = {"score": v, "mod": (v - 10) // 2}
+            else:
+                abilities_block[k] = v
+
         return {
             "name": self.name,
             "hp": {
@@ -334,10 +395,11 @@ class CombatantState:
                 "modifier": self.damage_modifier,
                 "type": dtype_str,
             },
-            "abilities": dict(self.abilities),
+            "abilities": abilities_block,
             "cr": self.cr,
             "xp": self.xp,
             "stance": self.stance,
+            "initiative": self.initiative,
         }
 
     @classmethod
@@ -345,25 +407,41 @@ class CombatantState:
         cls, candidate: CreatureCandidate | Mapping[str, Any], count_index: int = 1
     ) -> CombatantState:
         if isinstance(candidate, CreatureCandidate):
-            name = candidate.name
+            base_name = candidate.name
             xp = candidate.xp
             cr_raw = candidate.cr
             facets = dict(candidate.facets)
         else:
-            name = str(candidate.get("name", "Unknown Creature"))
+            base_name = str(candidate.get("name", "Unknown Creature"))
             xp = int(candidate.get("xp", candidate.get("xp_per_unit", 50)))
             cr_raw = candidate.get("cr", "")
             facets = dict(candidate.get("facets", {}))
 
         cr = _parse_cr(cr_raw)
-        if count_index > 1:
-            name = f"{name} #{count_index}"
+        name = f"{base_name} #{count_index}" if count_index > 1 else base_name
 
         if "hp" in facets and "ac" in facets:
             sb = dict(facets)
-            sb.setdefault("name", name)
-            sb.setdefault("xp", xp)
-            sb.setdefault("cr", cr)
+            sb["name"] = name
+            sb["xp"] = xp
+            sb["cr"] = cr
+            if "attack_modifier" not in sb:
+                sb["attack_modifier"] = int(
+                    facets.get("attack_modifier", 5 if cr >= 2.0 else 4 if cr >= 0.25 else 3)
+                )
+            if "damage" not in sb:
+                dmg_type = _parse_damage_type(facets.get("damage_type", DamageType.SLASHING))
+                dmg_dice = int(facets.get("damage_dice", 2 if cr >= 1.0 else 1))
+                dmg_sides = int(facets.get("damage_sides", 8 if cr >= 1.0 else 6))
+                dmg_mod = int(facets.get("damage_modifier", 3 if cr >= 1.0 else 2))
+                sb["damage"] = {
+                    "dice": dmg_dice,
+                    "sides": dmg_sides,
+                    "modifier": dmg_mod,
+                    "type": dmg_type.value if isinstance(dmg_type, DamageType) else str(dmg_type),
+                }
+            if "stance" not in sb:
+                sb["stance"] = str(facets.get("stance", "aggressive"))
             return cls.from_state_block(sb)
 
         hp_val = int(facets.get("hp", max(7, int(xp * 0.15 + 6))))
@@ -373,6 +451,7 @@ class CombatantState:
         dmg_dice = int(facets.get("damage_dice", 2 if cr >= 1.0 else 1))
         dmg_sides = int(facets.get("damage_sides", 8 if cr >= 1.0 else 6))
         dmg_mod = int(facets.get("damage_modifier", 3 if cr >= 1.0 else 2))
+        stance = str(facets.get("stance", "aggressive"))
 
         return cls(
             name=name,
@@ -386,8 +465,28 @@ class CombatantState:
             damage_type=dmg_type,
             cr=cr,
             xp=xp,
-            stance=str(facets.get("stance", "aggressive")),
+            stance=stance,
         )
+
+
+def select_target(
+    attacker: CombatantState, opponents: Sequence[CombatantState]
+) -> CombatantState:
+    """Select target based on attacker's stance per CORE-GAME-LOOP-SPEC.md."""
+    living = [c for c in opponents if c.current_hp > 0]
+    if not living:
+        raise ValueError("No living opponents available")
+    if attacker.stance == "defensive":
+        # Defensive: prioritize highest threat (attack modifier, then max damage)
+        return max(
+            living,
+            key=lambda t: (
+                t.attack_modifier,
+                t.damage_dice_count * t.damage_die_sides + t.damage_modifier,
+            ),
+        )
+    # Default / aggressive: prioritize lowest HP to eliminate combatants quickly
+    return min(living, key=lambda t: t.current_hp)
 
 
 def run_encounter(
@@ -402,32 +501,75 @@ def run_encounter(
         raise ValueError("party cannot be empty")
     if not enemies:
         raise ValueError("enemies cannot be empty")
+    if max_rounds <= 0:
+        raise ValueError(f"max_rounds must be positive, got {max_rounds}")
+
+    # Initial terminal state checks
+    if all(p.current_hp <= 0 for p in party):
+        return {
+            "outcome": "mercy_rule",
+            "rounds": 0,
+            "xp_awarded": 0,
+            "narrative": (
+                "Mercy rule narrative intervention: All party members have fallen unconscious, "
+                "spared from death by fate."
+            ),
+            "party": [p.to_state_block() for p in party],
+            "enemies": [e.to_state_block() for e in enemies],
+            "log": CombatLog(entries=()),
+            "game_events": [],
+        }
+
+    if all(e.current_hp <= 0 for e in enemies):
+        total_xp = sum(e.xp for e in enemies)
+        return {
+            "outcome": "victory",
+            "rounds": 0,
+            "xp_awarded": total_xp,
+            "narrative": f"Victory! The party defeated all {len(enemies)} enemy combatants.",
+            "party": [p.to_state_block() for p in party],
+            "enemies": [e.to_state_block() for e in enemies],
+            "log": CombatLog(entries=()),
+            "game_events": [],
+        }
 
     entries: list[CombatLogEntry] = []
     rounds_executed = 0
     outcome = "stalemate"
     narrative = ""
 
+    turn_order: list[tuple[CombatantState, str]] = [
+        (pc, "party") for pc in party
+    ] + [(enemy, "enemy") for enemy in enemies]
+    turn_order.sort(key=lambda item: item[0].initiative, reverse=True)
+
     for round_num in range(1, max_rounds + 1):
         rounds_executed = round_num
 
-        # 1. Party turns: each living PC attacks the first living enemy
-        for pc in party:
-            if pc.current_hp <= 0:
+        for combatant, side in turn_order:
+            if combatant.current_hp <= 0:
                 continue
-            living_enemies = [e for e in enemies if e.current_hp > 0]
-            if not living_enemies:
-                break
-            target = living_enemies[0]
+
+            if side == "party":
+                living_opponents = [e for e in enemies if e.current_hp > 0]
+                if not living_opponents:
+                    break
+                target = select_target(combatant, living_opponents)
+            else:
+                living_opponents = [p for p in party if p.current_hp > 0]
+                if not living_opponents:
+                    break
+                target = select_target(combatant, living_opponents)
+
             req = AttackRequest(
-                attacker=pc.name,
+                attacker=combatant.name,
                 target=target.name,
-                attack_modifier=pc.attack_modifier,
+                attack_modifier=combatant.attack_modifier,
                 target_ac=target.ac,
-                damage_dice_count=pc.damage_dice_count,
-                damage_die_sides=pc.damage_die_sides,
-                damage_modifier=pc.damage_modifier,
-                damage_type=pc.damage_type,
+                damage_dice_count=combatant.damage_dice_count,
+                damage_die_sides=combatant.damage_die_sides,
+                damage_modifier=combatant.damage_modifier,
+                damage_type=combatant.damage_type,
                 advantage=AdvantageMode.NORMAL,
             )
             entry, res = record_entry(req, sequence=len(entries) + 1, dice=dice)
@@ -435,42 +577,20 @@ def run_encounter(
             if res.is_hit:
                 target.current_hp = max(0, target.current_hp - res.damage_dealt)
 
-        if all(e.current_hp <= 0 for e in enemies):
-            outcome = "victory"
-            narrative = f"Victory! The party defeated all {len(enemies)} enemy combatants."
-            break
-
-        # 2. Enemy turns: each living enemy attacks the first living PC
-        for enemy in enemies:
-            if enemy.current_hp <= 0:
-                continue
-            living_pcs = [p for p in party if p.current_hp > 0]
-            if not living_pcs:
+            if all(e.current_hp <= 0 for e in enemies):
+                outcome = "victory"
+                narrative = f"Victory! The party defeated all {len(enemies)} enemy combatants."
                 break
-            target = living_pcs[0]
-            req = AttackRequest(
-                attacker=enemy.name,
-                target=target.name,
-                attack_modifier=enemy.attack_modifier,
-                target_ac=target.ac,
-                damage_dice_count=enemy.damage_dice_count,
-                damage_die_sides=enemy.damage_die_sides,
-                damage_modifier=enemy.damage_modifier,
-                damage_type=enemy.damage_type,
-                advantage=AdvantageMode.NORMAL,
-            )
-            entry, res = record_entry(req, sequence=len(entries) + 1, dice=dice)
-            entries.append(entry)
-            if res.is_hit:
-                target.current_hp = max(0, target.current_hp - res.damage_dealt)
 
-        # Check party defeat -> Mercy rule narrative intervention
-        if all(p.current_hp <= 0 for p in party):
-            outcome = "mercy_rule"
-            narrative = (
-                "Mercy rule narrative intervention: All party members have fallen unconscious, "
-                "spared from death by fate."
-            )
+            if all(p.current_hp <= 0 for p in party):
+                outcome = "mercy_rule"
+                narrative = (
+                    "Mercy rule narrative intervention: All party members have fallen unconscious, "
+                    "spared from death by fate."
+                )
+                break
+
+        if outcome in ("victory", "mercy_rule"):
             break
 
     total_xp = sum(e.xp for e in enemies) if outcome == "victory" else 0
