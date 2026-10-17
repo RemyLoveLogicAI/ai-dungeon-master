@@ -895,3 +895,196 @@ class GenUIBlueprintFactory:
 
         return blueprint
 
+    @staticmethod
+    def create_investigation_surface(
+        surface_id: str = "ruined-observatory",
+        title: str = "The Ruined Celestial Observatory",
+        location: str = "Moonrise Spire, Upper Terrace",
+        lighting: str = "Moonlit (Dim Light)",
+        investigation_clues: list[str] | None = None,
+        apparatus_state: str = "Dials Misaligned (3 of 4 Locked)",
+        star_alignment: str = "Constellation of the Silver Dragon",
+    ) -> SurfaceBlueprint:
+        blueprint = SurfaceBlueprint(
+            surfaceId=surface_id,
+            title=title,
+            subtitle="Level 2 Custom Interaction: Celestial Apparatus Investigation",
+        )
+        c = blueprint.components
+        clues = investigation_clues or [
+            "Ancient astrolabe lenses are cracked but functional.",
+            "Brass rings bear celestial glyphs corresponding to the lunar equinox.",
+            "A faint arcane hum emanates from the central focusing crystal.",
+        ]
+
+        # Root Surface
+        c.append(UIComponent(id="root", type=UIComponentType.SURFACE.value, props={"theme": "dark-dungeon"}))
+
+        # Scene Presentation Card (Visual Presentation & Narration)
+        c.append(
+            UIComponent(
+                id="scene-card",
+                type=UIComponentType.CARD.value,
+                parentId="root",
+                props={"title": f"Location: {location}", "badge": lighting},
+            )
+        )
+        c.append(
+            UIComponent(
+                id="scene-narration",
+                type=UIComponentType.TEXT.value,
+                parentId="scene-card",
+                props={
+                    "text": (
+                        "Open to the cold night air, the shattered dome of the observatory frames the stars. "
+                        "At the center rests a massive brass telescope adorned with interlocking rings. "
+                        "The celestial mechanism sits dormant, waiting for its dials to be properly aligned."
+                    )
+                },
+            )
+        )
+
+        # Main Split
+        c.append(
+            UIComponent(
+                id="main-split",
+                type=UIComponentType.ROW.value,
+                parentId="root",
+                props={"gap": "20px"},
+            )
+        )
+        c.append(
+            UIComponent(
+                id="left-col",
+                type=UIComponentType.COLUMN.value,
+                parentId="main-split",
+                props={"flex": "3"},
+            )
+        )
+        c.append(
+            UIComponent(
+                id="right-col",
+                type=UIComponentType.COLUMN.value,
+                parentId="main-split",
+                props={"flex": "2"},
+            )
+        )
+
+        # Clues Card
+        c.append(
+            UIComponent(
+                id="clues-card",
+                type=UIComponentType.CARD.value,
+                parentId="left-col",
+                props={"title": "Perception & Investigation Clues"},
+            )
+        )
+        for idx, clue in enumerate(clues, 1):
+            c.append(
+                UIComponent(
+                    id=f"clue-{idx}",
+                    type=UIComponentType.TEXT.value,
+                    parentId="clues-card",
+                    props={"text": f"• {clue}"},
+                )
+            )
+
+        # Apparatus Diagnostics Card
+        c.append(
+            UIComponent(
+                id="apparatus-card",
+                type=UIComponentType.CARD.value,
+                parentId="left-col",
+                props={"title": "Apparatus Diagnostics"},
+            )
+        )
+        c.append(
+            UIComponent(
+                id="status-row",
+                type=UIComponentType.ROW.value,
+                parentId="apparatus-card",
+                props={"gap": "16px"},
+            )
+        )
+        c.append(
+            UIComponent(
+                id="stat-state",
+                type=UIComponentType.METRIC.value,
+                parentId="status-row",
+                props={"label": "Apparatus Status", "value": apparatus_state},
+            )
+        )
+        c.append(
+            UIComponent(
+                id="stat-target",
+                type=UIComponentType.METRIC.value,
+                parentId="status-row",
+                props={"label": "Target Alignment", "value": star_alignment},
+            )
+        )
+
+        # Interactive Workspace Card (Right Column)
+        c.append(
+            UIComponent(
+                id="actions-card",
+                type=UIComponentType.CARD.value,
+                parentId="right-col",
+                props={"title": "Interactive Workspace: Telescope Controls"},
+            )
+        )
+        c.append(
+            UIComponent(
+                id="btn-examine",
+                type=UIComponentType.ACTION_BUTTON.value,
+                parentId="actions-card",
+                props={
+                    "label": "🔍 Arcana Check: Decipher Glyphs",
+                    "intent": "INVESTIGATE_APPARATUS",
+                    "enabled": True,
+                    "params": {"skill": "Arcana", "target": "Celestial Glyphs"},
+                },
+            )
+        )
+        c.append(
+            UIComponent(
+                id="btn-align",
+                type=UIComponentType.ACTION_BUTTON.value,
+                parentId="actions-card",
+                props={
+                    "label": "⚙️ Rotate Brass Ring (Dragon Constellation)",
+                    "intent": "ALIGN_CELESTIAL_DIAL",
+                    "enabled": True,
+                    "params": {"ring": "Outer Ring", "constellation": "Silver Dragon"},
+                },
+            )
+        )
+        c.append(
+            UIComponent(
+                id="btn-cast-light",
+                type=UIComponentType.ACTION_BUTTON.value,
+                parentId="actions-card",
+                props={
+                    "label": "✨ Channel Arcane Spark into Lens",
+                    "intent": "CHANNEL_ARCANA",
+                    "enabled": True,
+                    "params": {"spell": "Light / Prestidigitation", "target": "Focusing Crystal"},
+                },
+            )
+        )
+        c.append(
+            UIComponent(
+                id="btn-return",
+                type=UIComponentType.ACTION_BUTTON.value,
+                parentId="actions-card",
+                props={
+                    "label": "🔙 Return to Spire Courtyard",
+                    "intent": "NAVIGATE_SCENE",
+                    "enabled": True,
+                    "params": {"targetScene": "crypt_entrance"},
+                },
+            )
+        )
+
+        return blueprint
+
+

@@ -280,11 +280,31 @@
       });
       updateHeroBadge();
       toast("Draft switched: " + state.hero.archetype + " (" + state.hero.name + ")");
+    } else if (intent === "INVESTIGATE_APPARATUS") {
+      state.journal.push({
+        action: intent,
+        result: "Arcana check: Deciphered celestial glyphs for the Silver Dragon constellation",
+        ts: new Date().toISOString(),
+      });
+      toast("Arcana check: The glyphs reveal the Silver Dragon alignment sequence!");
+    } else if (intent === "ALIGN_CELESTIAL_DIAL") {
+      state.journal.push({
+        action: intent,
+        result: "Outer ring rotated and locked into alignment",
+        ts: new Date().toISOString(),
+      });
+      toast("Mechanism clanks into place! Celestial lens focused.");
+    } else if (intent === "CHANNEL_ARCANA") {
+      state.journal.push({
+        action: intent,
+        result: "Arcane spark ignited; starlight projected across the dome",
+        ts: new Date().toISOString(),
+      });
+      toast("Arcane spark ignited! Starlight projects the lost dungeon map.");
     }
   }
 
-  // Deep links: #onboarding, #scene=<id>, and #encounter. Sharing a link to a view is worth
-  // more than a scroll position, and it makes each surface reachable directly.
+  // Deep links: #onboarding, #scene=<id>, #encounter, #investigation.
   function syncHash(value) {
     if (window.location.hash !== value) {
       window.history.replaceState(null, "", value);
@@ -298,6 +318,15 @@
     host.replaceChildren(renderBlueprint(blueprint, handleIntent));
     document.getElementById("crumb").textContent = "onboarding (stage 1 & 2)";
     syncHash("#onboarding");
+  }
+
+  function showInvestigation() {
+    const host = document.getElementById("stage");
+    const blueprint = state.data.investigation.surface;
+    state.surfaceId = blueprint.surface.id;
+    host.replaceChildren(renderBlueprint(blueprint, handleIntent));
+    document.getElementById("crumb").textContent = "investigation (level 2 custom workspace)";
+    syncHash("#investigation");
   }
 
   function showScene(sceneId) {
@@ -327,6 +356,7 @@
     });
     cue("navigate");
     if (view === "onboarding") showOnboarding();
+    else if (view === "investigation") showInvestigation();
     else if (view === "story") showScene(state.sceneId);
     else showEncounter();
   }
@@ -351,6 +381,8 @@
     const sceneMatch = /^#scene=(.+)$/.exec(hash);
     if (hash === "#encounter") {
       setView("encounter");
+    } else if (hash === "#investigation") {
+      setView("investigation");
     } else if (hash === "#story") {
       setView("story");
     } else if (sceneMatch && state.data.scenario.scenes[sceneMatch[1]]) {

@@ -84,6 +84,10 @@ class TestBlueprintsSatisfyTheContract(unittest.TestCase):
         validate_agentsurface_v01(self.data["onboarding"]["surface"], root="root")
         self.assertIn("CONFIRM_CHARACTER_DRAFT", self.data["onboarding"]["surface"]["intents"])
 
+    def test_investigation_surface_validates(self):
+        validate_agentsurface_v01(self.data["investigation"]["surface"], root="root")
+        self.assertIn("INVESTIGATE_APPARATUS", self.data["investigation"]["surface"]["intents"])
+
     def test_start_scene_is_exported(self):
         start = self.data["scenario"]["startScene"]
         self.assertIn(start, self.data["scenario"]["scenes"])
@@ -131,6 +135,7 @@ class TestRendererCoversEveryEmittedType(unittest.TestCase):
             emitted |= _component_types(entry["blueprint"])
         emitted |= _component_types(data["encounter"]["surface"])
         emitted |= _component_types(data["onboarding"]["surface"])
+        emitted |= _component_types(data["investigation"]["surface"])
         self.assertTrue(
             emitted <= self.supported, f"unrendered types: {sorted(emitted - self.supported)}"
         )

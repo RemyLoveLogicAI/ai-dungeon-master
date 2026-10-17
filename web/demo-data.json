@@ -441,6 +441,281 @@
     }
   },
   "generator": "web/build_demo.py",
+  "investigation": {
+    "surface": {
+      "components": [
+        {
+          "children": [
+            "scene-card",
+            "main-split"
+          ],
+          "id": "root",
+          "props": {
+            "direction": "column",
+            "gap": "16"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "scene-card-title",
+            "scene-card-badge",
+            "scene-narration"
+          ],
+          "id": "scene-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "scene-narration",
+          "props": {
+            "text": "Open to the cold night air, the shattered dome of the observatory frames the stars. At the center rests a massive brass telescope adorned with interlocking rings. The celestial mechanism sits dormant, waiting for its dials to be properly aligned."
+          },
+          "type": "Text"
+        },
+        {
+          "children": [
+            "left-col",
+            "right-col"
+          ],
+          "id": "main-split",
+          "props": {
+            "direction": "row",
+            "gap": "20px"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "clues-card",
+            "apparatus-card"
+          ],
+          "id": "left-col",
+          "props": {
+            "direction": "column",
+            "gap": "12"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "actions-card"
+          ],
+          "id": "right-col",
+          "props": {
+            "direction": "column",
+            "gap": "12"
+          },
+          "type": "Stack"
+        },
+        {
+          "children": [
+            "clues-card-title",
+            "clue-1",
+            "clue-2",
+            "clue-3"
+          ],
+          "id": "clues-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "clue-1",
+          "props": {
+            "text": "\u2022 Ancient astrolabe lenses are cracked but functional."
+          },
+          "type": "Text"
+        },
+        {
+          "id": "clue-2",
+          "props": {
+            "text": "\u2022 Brass rings bear celestial glyphs corresponding to the lunar equinox."
+          },
+          "type": "Text"
+        },
+        {
+          "id": "clue-3",
+          "props": {
+            "text": "\u2022 A faint arcane hum emanates from the central focusing crystal."
+          },
+          "type": "Text"
+        },
+        {
+          "children": [
+            "apparatus-card-title",
+            "status-row"
+          ],
+          "id": "apparatus-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "children": [
+            "stat-state",
+            "stat-target"
+          ],
+          "id": "status-row",
+          "props": {
+            "direction": "row",
+            "gap": "16px"
+          },
+          "type": "Stack"
+        },
+        {
+          "id": "stat-state",
+          "props": {
+            "label": "Apparatus Status",
+            "value": "Dials Misaligned (3 of 4 Locked)"
+          },
+          "type": "Stat"
+        },
+        {
+          "id": "stat-target",
+          "props": {
+            "label": "Target Alignment",
+            "value": "Constellation of the Silver Dragon"
+          },
+          "type": "Stat"
+        },
+        {
+          "children": [
+            "actions-card-title",
+            "btn-examine",
+            "btn-align",
+            "btn-cast-light",
+            "btn-return"
+          ],
+          "id": "actions-card",
+          "props": {
+            "padding": "16"
+          },
+          "type": "Card"
+        },
+        {
+          "id": "btn-examine",
+          "props": {
+            "action": {
+              "intent": "INVESTIGATE_APPARATUS",
+              "payloadKeys": [
+                "btn-examine.skill",
+                "btn-examine.target"
+              ]
+            },
+            "label": "\ud83d\udd0d Arcana Check: Decipher Glyphs"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-align",
+          "props": {
+            "action": {
+              "intent": "ALIGN_CELESTIAL_DIAL",
+              "payloadKeys": [
+                "btn-align.ring",
+                "btn-align.constellation"
+              ]
+            },
+            "label": "\u2699\ufe0f Rotate Brass Ring (Dragon Constellation)"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-cast-light",
+          "props": {
+            "action": {
+              "intent": "CHANNEL_ARCANA",
+              "payloadKeys": [
+                "btn-cast-light.spell",
+                "btn-cast-light.target"
+              ]
+            },
+            "label": "\u2728 Channel Arcane Spark into Lens"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "btn-return",
+          "props": {
+            "action": {
+              "intent": "NAVIGATE_SCENE",
+              "payloadKeys": [
+                "btn-return.targetScene"
+              ]
+            },
+            "label": "\ud83d\udd19 Return to Spire Courtyard"
+          },
+          "type": "Button"
+        },
+        {
+          "id": "scene-card-title",
+          "props": {
+            "level": 3,
+            "text": "Location: Moonrise Spire, Upper Terrace"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "scene-card-badge",
+          "props": {
+            "text": "Moonlit (Dim Light)",
+            "tone": "accent"
+          },
+          "type": "Badge"
+        },
+        {
+          "id": "clues-card-title",
+          "props": {
+            "level": 3,
+            "text": "Perception & Investigation Clues"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "apparatus-card-title",
+          "props": {
+            "level": 3,
+            "text": "Apparatus Diagnostics"
+          },
+          "type": "Heading"
+        },
+        {
+          "id": "actions-card-title",
+          "props": {
+            "level": 3,
+            "text": "Interactive Workspace: Telescope Controls"
+          },
+          "type": "Heading"
+        }
+      ],
+      "dataModel": {
+        "btn-align.constellation": "Silver Dragon",
+        "btn-align.ring": "Outer Ring",
+        "btn-cast-light.spell": "Light / Prestidigitation",
+        "btn-cast-light.target": "Focusing Crystal",
+        "btn-examine.skill": "Arcana",
+        "btn-examine.target": "Celestial Glyphs",
+        "btn-return.targetScene": "crypt_entrance"
+      },
+      "intents": [
+        "INVESTIGATE_APPARATUS",
+        "ALIGN_CELESTIAL_DIAL",
+        "CHANNEL_ARCANA",
+        "NAVIGATE_SCENE"
+      ],
+      "surface": {
+        "id": "ruined-observatory",
+        "subtitle": "Level 2 Custom Interaction: Celestial Apparatus Investigation",
+        "title": "The Ruined Celestial Observatory",
+        "width": "wide"
+      }
+    }
+  },
   "onboarding": {
     "surface": {
       "components": [
