@@ -61,9 +61,11 @@ def test_provider_extracts_json_without_thought_content():
 
 def test_provider_block_is_explicit():
     provider = GeminiProvider(api_key="test-only")
-    with patch.object(provider, "_post", return_value={"promptFeedback": {"blockReason": "SAFETY"}}):
-        with pytest.raises(GenerationError):
-            provider.generate_json("request", "system")
+    with (
+        patch.object(provider, "_post", return_value={"promptFeedback": {"blockReason": "SAFETY"}}),
+        pytest.raises(GenerationError),
+    ):
+        provider.generate_json("request", "system")
 
 
 def test_image_and_music_use_their_documented_response_shapes():
@@ -80,6 +82,23 @@ def test_image_and_music_use_their_documented_response_shapes():
 
 def test_invalid_provider_media_is_not_saved_as_an_image():
     provider = GeminiProvider(api_key="test-only")
-    with patch.object(provider, "_post", return_value={"candidates": [{"content": {"parts": [{"text": "I cannot draw that"}]}}]}):
-        with pytest.raises(GenerationError):
-            provider.generate_image("paint")
+    response = {"candidates": [{"content": {"parts": [{"text": "I cannot draw that"}]}}]}
+    with patch.object(provider, "_post", return_value=response), pytest.raises(GenerationError):
+        provider.generate_image("paint")
+
+
+@pytest.mark.parametrize("payload", ["not-a-dict", {"title": "only"}])
+def test_presentation_rejects_a_bad_shape(payload):
+    with pytest.raises(GenerationError):
+        validate_presentation(payload)
+
+
+def test_provider_rejects_empty_or_malformed_text():
+    provider = GeminiProvider(api_key="test-only")
+    with patch.object(provider, "_post", return_value={}), pytest.raises(GenerationError):
+        provider.generate_json("request")
+    malformed = {"candidates": [{"content": {"parts": [{"text": "not json"}]}}]}
+    with patch.object(provider, "_post", return_value=malformed), pytest.raises(GenerationError):
+        provider.generate_json("request")
+    with patch.object(provider, "_post", return_value={}), pytest.raises(GenerationError):
+        provider.generate_music("quiet harp")

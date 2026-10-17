@@ -285,17 +285,22 @@ def default_log_dir() -> str:
 def save_log(log: CombatLog, path: str | os.PathLike[str]) -> str:
     """Atomically replace ``path`` with UTF-8 JSON and return the path.
 
-    Failures before replacement leave the previous checkpoint intact. File
-    contents are synced before replacement; on POSIX the parent directory is
-    synced afterward where supported. A directory-sync error can therefore
-    report failure after the new checkpoint is already visible.
+    Symlinks are resolved before saving so the link survives and its target is
+    replaced. Failures before replacement leave the previous checkpoint intact.
+    File contents are synced before replacement; on POSIX the parent directory
+    is synced afterward where supported. A directory-sync error can therefore
+    report failure after the new checkpoint is already visible. The caller must
+    not concurrently retarget links or directories. Concurrent saves are
+    last-wins. Handled failures remove the temporary file; a killed process or
+    failed cleanup may leave one.
     """
     text = log.dumps()
     if len(text.encode("utf-8")) > MAX_LOG_BYTES:
         raise ValueError(f"serialized log exceeds the {MAX_LOG_BYTES} byte limit")
-    target = Path(path)
+    requested = Path(path)
+    target = requested.resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = None
+    temporary: Path | None = None
     try:
         # A sibling guarantees replacement stays on the same filesystem. Close
         # before replacing so this also works on Windows.
@@ -326,7 +331,7 @@ def save_log(log: CombatLog, path: str | os.PathLike[str]) -> str:
                     raise
         finally:
             os.close(directory)
-    return str(target)
+    return str(requested)
 
 
 def load_log(

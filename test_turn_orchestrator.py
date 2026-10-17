@@ -44,6 +44,12 @@ class TestTurnOrchestrator(unittest.TestCase):
         self.assertEqual(result.audio.cue_type, "fireball_impact")
         validate_agentsurface_v01(result.surface, root="root")
 
+    def test_unrecognized_intent_stays_a_narrative_turn(self) -> None:
+        result = self.orchestrator.execute_turn(self.hero, "LOOK_AROUND")
+        self.assertEqual(result.mechanic_resolution["action"], "LOOK_AROUND")
+        self.assertEqual(result.audio.cue_type, "ambient_drone")
+        validate_agentsurface_v01(result.surface, root="root")
+
 
 if __name__ == "__main__":
     unittest.main()

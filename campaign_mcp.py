@@ -33,7 +33,7 @@ class CampaignClient:
             with self.opener.open(req) as resp:
                 raw = resp.read()
                 return json.loads(raw.decode("utf-8")) if raw else {}
-        except Exception:
+        except (OSError, urllib.error.URLError, UnicodeError, json.JSONDecodeError):
             # Sanitize error to avoid leaking credentials or sensitive tokens
             raise RuntimeError("Campaign client communication error")
 
@@ -136,7 +136,7 @@ class MCPServer:
                             "content": [{"type": "text", "text": json.dumps(res)}],
                         },
                     }
-                except Exception:
+                except (OSError, RuntimeError, ValueError, TypeError, KeyError):
                     return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Failed to get campaign"}]}}
 
             elif name == "dm_status":
@@ -155,7 +155,7 @@ class MCPServer:
                             "content": [{"type": "text", "text": json.dumps(sanitized)}],
                         },
                     }
-                except Exception:
+                except (OSError, RuntimeError, ValueError, TypeError, KeyError, AttributeError):
                     return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Failed to get status"}]}}
 
             elif name == "dm_act":
@@ -175,7 +175,7 @@ class MCPServer:
                             "content": [{"type": "text", "text": json.dumps(res)}],
                         },
                     }
-                except Exception:
+                except (OSError, RuntimeError, ValueError, TypeError, KeyError):
                     return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Action failed"}]}}
 
             return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": f"Unsupported tool: {name}"}]}}

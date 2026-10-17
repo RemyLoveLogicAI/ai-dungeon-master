@@ -105,6 +105,24 @@ class TestDungeonMaster(unittest.TestCase):
         self.assertGreaterEqual(len(combat_ui.tactical_grid.combatants), 2)
         self.assertEqual(combat_ui.suggested_ui_layout, "COMBAT")
 
+    def test_story_engine_routes_dialogue_and_travel(self):
+        engine = StoryEngine()
+        dialogue = engine.process_turn("talk to the archivist")
+        self.assertEqual(dialogue.suggested_ui_layout, "DIALOGUE")
+        self.assertIsNotNone(dialogue.npc_interaction)
+        travel = engine.process_turn("travel toward the roost")
+        self.assertEqual(travel.suggested_ui_layout, "ATLAS")
+        self.assertTrue(travel.narrative_text)
+
+    def test_story_engine_combat_can_end_in_victory(self):
+        engine = StoryEngine()
+        engine.process_turn("attack")
+        engine.active_combat_enemy.current_hp = 1
+        victory = engine.process_turn("flank and strike")
+        self.assertEqual(victory.suggested_ui_layout, "LOOT")
+        self.assertIsNone(engine.active_combat_enemy)
+        self.assertTrue(victory.loot)
+
 
 if __name__ == "__main__":
     unittest.main()

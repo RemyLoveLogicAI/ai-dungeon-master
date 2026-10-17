@@ -105,6 +105,43 @@ class TestFileBoundary(unittest.TestCase):
         self.assertEqual(len(restored), 3)
         self.assertTrue(verify_log(restored))
 
+    def test_save_follows_symlink_without_replacing_it(self):
+        for existing in (False, True):
+            with self.subTest(existing=existing), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                target = root / "storage" / "encounter.json"
+                target.parent.mkdir()
+                if existing:
+                    save_log(make_log(1), target)
+                link = root / "checkpoint.json"
+                link.symlink_to(Path("storage") / target.name)
+                updated = make_log(2)
+                with mock.patch.object(combat_log.os, "replace", wraps=os.replace) as replace:
+                    self.assertEqual(save_log(updated, link), str(link))
+                replace.assert_called_once()
+                source, destination = replace.call_args.args
+                self.assertEqual(source.parent, target.parent)
+                self.assertEqual(destination, target)
+                self.assertTrue(link.is_symlink())
+                self.assertEqual(load_log(target), updated)
+                self.assertEqual(load_log(link), updated)
+                self.assertEqual(list(target.parent.iterdir()), [target])
+
+    def test_failed_symlink_save_preserves_link_and_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target = Path(directory) / "encounter.json"
+            previous = make_log(1)
+            save_log(previous, target)
+            link = Path(directory) / "checkpoint.json"
+            link.symlink_to(target)
+            with mock.patch.object(
+                combat_log.os, "replace", side_effect=OSError("save failed")
+            ), self.assertRaisesRegex(OSError, "save failed"):
+                save_log(make_log(2), link)
+            self.assertTrue(link.is_symlink())
+            self.assertEqual(load_log(target), previous)
+            self.assertEqual(set(Path(directory).iterdir()), {target, link})
+
     def test_interrupted_write_preserves_previous_checkpoint(self):
         # Inject a real partial write at the shared text-I/O boundary, not a
         # save_log implementation detail. This reproduces the old truncation.
@@ -177,6 +214,18 @@ class TestFileBoundary(unittest.TestCase):
                         self.assertFalse(path.exists())
                     self.assertEqual(list(Path(directory).iterdir()), [path] if existing else [])
 
+    def test_temporary_file_creation_failure_preserves_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "encounter.json"
+            previous = make_log(1)
+            save_log(previous, path)
+            with mock.patch.object(
+                combat_log.tempfile, "NamedTemporaryFile", side_effect=OSError("no space")
+            ), self.assertRaisesRegex(OSError, "no space"):
+                save_log(make_log(2), path)
+            self.assertEqual(load_log(path), previous)
+            self.assertEqual(list(Path(directory).iterdir()), [path])
+
     def test_replace_observes_closed_synced_complete_sibling(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "encounter.json"
@@ -206,6 +255,28 @@ class TestFileBoundary(unittest.TestCase):
             self.assertEqual(list(path.parent.iterdir()), [path])
             self.assertEqual(events, ["sync", "replace", "sync"] if os.name == "posix"
                              else ["sync", "replace"])
+
+    def test_symlink_save_syncs_resolved_parent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target = root / "storage" / "encounter.json"
+            target.parent.mkdir()
+            link = root / "checkpoint.json"
+            link.symlink_to(target)
+            real_open = os.open
+            opened = []
+
+            def open_directory(path, flags, *args, **kwargs):
+                if flags == os.O_RDONLY:
+                    opened.append(Path(path))
+                return real_open(path, flags, *args, **kwargs)
+
+            with mock.patch("combat_log.os.open", side_effect=open_directory):
+                save_log(make_log(1), link)
+            if os.name == "posix":
+                self.assertEqual(opened, [target.parent])
+            else:
+                self.assertEqual(opened, [])
 
     @unittest.skipUnless(os.name == "posix", "directory fsync is POSIX-only")
     def test_directory_sync_support_and_failure(self):
