@@ -46,6 +46,7 @@ FLOORS: dict[str, float] = {
     "genui.py": 98.0,
     "tui_runner.py": 97.0,
     "web/build_demo.py": 87.0,
+    "vr_server.py": 98.0,
 }
 
 DEFAULT_REPORT = Path(__file__).with_name("coverage.json")
