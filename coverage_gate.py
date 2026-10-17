@@ -42,6 +42,7 @@ FLOORS: dict[str, float] = {
     "coverage_gate.py": 95.0,
     "d20_rules.py": 98.0,
     "encounter_ai.py": 96.0,
+    "encounter_generator.py": 91.0,
     "game_foundation.py": 98.0,
     "genui.py": 98.0,
     "tui_runner.py": 97.0,

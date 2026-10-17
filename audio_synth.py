@@ -14,7 +14,7 @@ _RNG = random.Random()
 
 
 def _write_wav(filename: str, samples: list):
-    with wave.open(filename, 'w') as wav_file:
+    with wave.open(filename, "w") as wav_file:
         wav_file.setnchannels(1)  # Mono
         wav_file.setsampwidth(2)  # 16-bit
         wav_file.setframerate(SAMPLE_RATE)
@@ -24,7 +24,7 @@ def _write_wav(filename: str, samples: list):
         for s in samples:
             clamped = max(-1.0, min(1.0, s))
             val = int(clamped * 32767.0)
-            packed_frames.extend(struct.pack('<h', val))
+            packed_frames.extend(struct.pack("<h", val))
 
         wav_file.writeframes(packed_frames)
 
@@ -100,7 +100,7 @@ def synthesize_ambient_drone(
     output_path: str,
     duration: float = 2.0,
     root_freq: float = 55.0,
-    tension: float = 0.0
+    tension: float = 0.0,
 ):
     """Synthesizes a deep atmospheric drone with harmonic fifths, chorus, and tension overtones."""
     total_samples = int(SAMPLE_RATE * duration)
@@ -109,7 +109,7 @@ def synthesize_ambient_drone(
     # Root, fifth (82.4 Hz), and detuned oscillator
     f1 = root_freq
     f2 = root_freq * 1.4983  # Musical fifth
-    f3 = root_freq * 1.01    # Chorus detune
+    f3 = root_freq * 1.01  # Chorus detune
     # Tension overtone (tritone / sharp fourth for dark tension)
     tension_freq = root_freq * (1.414 if tension > 0.5 else 2.0)
 
@@ -146,7 +146,9 @@ def synthesize_cavern_ambience(output_path: str, duration: float = 2.0):
     # Wind hum base
     for i in range(total_samples):
         t = i / SAMPLE_RATE
-        wind = math.sin(2.0 * math.pi * (45.0 + 8.0 * math.sin(2.0 * math.pi * 0.3 * t)) * t)
+        wind = math.sin(
+            2.0 * math.pi * (45.0 + 8.0 * math.sin(2.0 * math.pi * 0.3 * t)) * t
+        )
         samples[i] = wind * 0.2
 
     # Add 4 water drip pings at varying intervals
@@ -166,7 +168,9 @@ def synthesize_cavern_ambience(output_path: str, duration: float = 2.0):
     _write_wav(output_path, samples)
 
 
-def synthesize_tension_pulse(output_path: str, tension: float = 0.5, duration: float = 1.5):
+def synthesize_tension_pulse(
+    output_path: str, tension: float = 0.5, duration: float = 1.5
+):
     """Synthesizes a low rhythmic heartbeat / tension pulse that scales with combat stakes."""
     total_samples = int(SAMPLE_RATE * duration)
     samples = [0.0] * total_samples
@@ -186,14 +190,20 @@ def synthesize_tension_pulse(output_path: str, tension: float = 0.5, duration: f
                 if idx < total_samples:
                     t = k / SAMPLE_RATE
                     env = math.exp(-t * 40.0)
-                    pulse_sound = math.sin(2.0 * math.pi * (60.0 - 20.0 * t) * t) * env * (0.5 + 0.3 * tension)
+                    pulse_sound = (
+                        math.sin(2.0 * math.pi * (60.0 - 20.0 * t) * t)
+                        * env
+                        * (0.5 + 0.3 * tension)
+                    )
                     samples[idx] += pulse_sound
         pos += pulse_interval
 
     _write_wav(output_path, samples)
 
 
-def calculate_encounter_tension(enemy_hp_pct: float, player_hp_pct: float, round_number: int) -> float:
+def calculate_encounter_tension(
+    enemy_hp_pct: float, player_hp_pct: float, round_number: int
+) -> float:
     """Calculates normalized tension (0.0 to 1.0) based on health pools and round progression."""
     danger = (1.0 - player_hp_pct) * 0.55
     enemy_desperation = (1.0 - enemy_hp_pct) * 0.25
@@ -240,7 +250,7 @@ def generate_all_sfx(output_dir: str):
 
 
 if __name__ == "__main__":
-    out = default_audio_dir()
+    out = os.path.join(os.getcwd(), "audio_output")
     res = generate_all_sfx(out)
     print("Synthesized audio assets:")
     for name, p in res.items():

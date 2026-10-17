@@ -15,6 +15,8 @@ starter scenario and explicit export adapters for two separate projects:
   `schemas/combat-encounter-log-1.schema.json`, a published JSON Schema any
   consumer can apply without this package. Needs the optional `jsonschema`
   extra, and fails loudly rather than skipping a requested check without it.
+- **`encounter_generator.py`** — seeded XP-budget encounter selection from caller-supplied
+  creature candidates, with custom facets preserved in the `gpf/encounter.v1` payload.
 - **`encounter_ai.py`** — stance-based enemy combat AI whose turn choice is a
   pure query: a decision reports its slot cost and the caller commits it.
 - **`audio_synth.py`** — procedural sound effects written directly to 16-bit WAV,
@@ -86,6 +88,79 @@ from d20_rules import SeededDiceSource
 run_simulated_encounter(dice=SeededDiceSource(7))
 ```
 
+### Generate an XP-budget encounter
+
+`encounter_generator.py` uses standard D&D 5e XP thresholds to select an
+encounter from explicit caller-provided candidates. No creature catalog, D&D
+Bible corpus, or loader is bundled. The official SRD 5.1 is an unstructured
+PDF under CC BY 4.0; it does not verify the reported 949-record corpus or any
+facet schema. Bible ingestion remains pending and unverified. Each candidate's
+`facets` mapping is copied unchanged into the output under the `gpf/encounter.v1`
+contract. See the [evidence record](docs/dnd-bible-facet-review-pack-2026-10-15.md)
+for official sources, required attribution, and the distinction between
+reported status and verified data.
+
+```python
+from encounter_generator import CreatureCandidate, Difficulty, generate_encounter
+
+candidates = [
+    CreatureCandidate(
+        name="Goblin",
+        xp=50,
+        cr="1/4",
+        facets={"biome": ["forest"], "tactics": {"preferred": "ambush"}},
+    ),
+    CreatureCandidate(
+        name="Orc",
+        xp=100,
+        cr="1/2",
+        facets={"biome": ["hills"], "alignment": "chaotic evil"},
+    ),
+]
+encounter = generate_encounter(
+    party=[3, 3, 3, 3],
+    candidates=candidates,
+    target_difficulty=Difficulty.MEDIUM,
+    seed=123,
+)
+print(encounter["achieved_difficulty"], encounter["budget"])
+```
+
+Reusing the same inputs and seed returns the same encounter. The generator
+validates levels, counts, candidate XP and difficulty labels. Its random search
+is a heuristic: the target difficulty is not guaranteed when available
+candidates cannot form a valid budget.
+
+Run a **synthetic demo** through the turn loop ([`docs/CORE-GAME-LOOP-SPEC.md`](docs/CORE-GAME-LOOP-SPEC.md))
+using the selection-only roster above. Demo statistics require explicit opt-in:
+
+```python
+from combat_runner import CombatantState, run_generated_encounter
+
+party = [
+    CombatantState(name="Alden", current_hp=38, max_hp=38, ac=16, attack_modifier=5)
+]
+result = run_generated_encounter(
+    party, candidates, Difficulty.MEDIUM, seed=123, allow_fixture_defaults=True
+)
+print(result["outcome"], result["rounds"], result["xp_awarded"])
+```
+
+Combat execution is strict by default: each selected candidate's `facets` must
+contain explicit normalized `hp`, `ac`, `attack_modifier`, `damage`, and `stance`.
+Missing fields and unknown damage types raise errors instead of inventing combat
+statistics. Candidate name, CR, and XP remain authoritative over facet metadata.
+Unverified source-specific layouts such as `armor_class` / `hit_points` require
+an explicit source adapter; compatibility with the remote Bible is not established.
+
+Omit `allow_fixture_defaults` for explicit combat data. The same opt-in is
+supported by `CombatantState.from_candidate`.
+Fixture mode supplies demo defaults only for absent fields; it preserves provided
+normalized values and does not repair malformed explicit damage blocks.
+The selection seed does not seed combat dice; pass a `SeededDiceSource` as `dice`
+when reproducible combat is needed. Initiative rolling, reward idempotency, and
+external GPF event-schema conformance remain separate pending work.
+
 Record a single attack and replay it from the dice it consumed:
 
 ```python
@@ -144,6 +219,10 @@ requested check is never reported as one that passed. The runners ask for a
 validator before they start, so `--validate-schema` refuses with exit status 2
 without printing a round or writing the log.
 
+Audio defaults to `audio_output/` under the current working directory. Python
+callers can pass `audio_dir=...` to `run_simulated_encounter` for a different
+per-run destination.
+
 Run the generative terminal surface (TUI), save the encounter, and resume it:
 
 ```bash
@@ -194,6 +273,35 @@ D&D 5e ruleset. See the SRD licensing boundary and provenance source in
 
 ## Development
 
+### Test the generated encounter locally
+
+From this repository, run the **auto-play prototype** with the existing Python
+environment (no server, downloads, or remote Bible connection required):
+
+```bash
+.venv/bin/python combat_runner.py generated --difficulty medium --seed 7
+```
+
+Try `easy`, `medium`, `hard`, or `deadly`. The demo uses two level-3 heroes and
+three original, explicitly populated demo templates, exercises the strict adapter
+without fixture defaults, and prints every resolved attack plus final HP/outcome.
+The same seed reproduces selection and combat. This is not yet an interactive
+campaign; initiative is assigned and XP is reported rather than persisted.
+
+Optional bounded run, JSON output, and replay-verified attack-log export:
+
+```bash
+.venv/bin/python combat_runner.py generated --difficulty hard --seed 42 --rounds 20
+.venv/bin/python combat_runner.py generated --seed 7 --json
+.venv/bin/python combat_runner.py generated --seed 7 --log /tmp/dnd-demo-attacks.json
+```
+
+Export uses the existing `combat-encounter-log/1` format, not an asserted external
+GPF campaign contract. Existing no-argument script and installed demo entry points
+retain their previous behavior.
+
+### Validation
+
 ```bash
 uv sync --dev
 uv run pytest -v
@@ -206,10 +314,9 @@ The CI workflow runs Ruff and pytest on Python 3.10–3.14 with `--cov`, so the
 total `fail_under` gate in `pyproject.toml` applies to a local
 `uv run pytest --cov` too. That gate cannot see one module collapsing while the
 others carry the average, so `coverage_gate.py` applies a floor per module on
-top of it and refuses a report older than the code it describes. No runtime
-dependencies are added by the foundation: `jsonschema` is a development and
-optional-extra dependency, used only to validate logs against the published
-schema.
+top of it and refuses a report older than the code it describes.
+The simulation/export core remains stdlib-only. `jsonschema` is an optional
+extra used only for published-schema checks.
 
 ## CI/CD
 

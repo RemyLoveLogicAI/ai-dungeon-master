@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `CONTRIBUTING.md`, `SECURITY.md`, a pull-request template, and Dependabot
   configuration.
 
+- `encounter_generator.py`: seeded XP-budget encounter selection from caller-provided
+  creature candidates, preserving arbitrary facets in the `gpf/encounter.v1`
+  payload. No creature catalog is bundled.
+- `combat_runner.py`: `CombatantState`, `run_encounter`, and `run_generated_encounter`
+  implementing the 5-stat combatant block, mercy-rule narrative intervention, and
+  `gpf/game-event.v1` event stream per `CORE-GAME-LOOP-SPEC.md`.
+
 ### Fixed
 
 - `resolve_rest` now validates `max_hp` and `current_hp` at the boundary,
