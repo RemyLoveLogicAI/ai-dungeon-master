@@ -28,7 +28,7 @@ jobs:
 
       # The data generator imports only the standard-library engine; no install
       # step and no third-party dependency is required to build the demo.
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
