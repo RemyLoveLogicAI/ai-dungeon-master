@@ -1,0 +1,124 @@
+{
+  "blueprint": {
+    "components": [
+      {
+        "children": [
+          "scene-title",
+          "scene-narrative",
+          "choice-option-1",
+          "choice-option-2",
+          "choice-help",
+          "choice-select",
+          "choose-button"
+        ],
+        "id": "root",
+        "props": {
+          "direction": "column",
+          "gap": "12"
+        },
+        "type": "Stack"
+      },
+      {
+        "id": "scene-title",
+        "props": {
+          "level": 2,
+          "text": "The Sunken Shrine"
+        },
+        "type": "Heading"
+      },
+      {
+        "id": "scene-narrative",
+        "props": {
+          "text": "Under the causeway, a small shrine glows beneath the water. Its keeper asks you to relight the lantern before the tide turns."
+        },
+        "type": "Text"
+      },
+      {
+        "id": "choice-option-1",
+        "props": {
+          "text": "relight_the_lantern: Restore the lantern and let the keeper guide you out."
+        },
+        "type": "Text"
+      },
+      {
+        "id": "choice-option-2",
+        "props": {
+          "text": "take_the_silver_bell: Take the silver bell and race the rising water."
+        },
+        "type": "Text"
+      },
+      {
+        "id": "choice-help",
+        "props": {
+          "text": "Choose an option by its id. The host maps the submitted id to a game choice."
+        },
+        "type": "Text"
+      },
+      {
+        "id": "choice-select",
+        "props": {
+          "bind": "choice_id",
+          "label": "Choice",
+          "options": [
+            "relight_the_lantern",
+            "take_the_silver_bell"
+          ]
+        },
+        "type": "Select"
+      },
+      {
+        "id": "choose-button",
+        "props": {
+          "action": {
+            "intent": "choose",
+            "payloadKeys": [
+              "choice_id"
+            ]
+          },
+          "label": "Continue"
+        },
+        "type": "Button"
+      }
+    ],
+    "dataModel": {
+      "choice_id": "relight_the_lantern"
+    },
+    "intents": [
+      "choose"
+    ],
+    "surface": {
+      "id": "the-bell-beneath-the-bridge",
+      "subtitle": "The Sunken Shrine",
+      "title": "The Bell Beneath the Bridge",
+      "width": "wide"
+    }
+  },
+  "contract": "agentsurface-blueprint/0.1",
+  "hero": {
+    "STR": 16,
+    "ac": 16,
+    "archetype": "Fighter",
+    "confirmed": true,
+    "edition": "D&D 5th Edition (Revised 2024)",
+    "hp": 12,
+    "level": 1,
+    "maxHp": 12,
+    "name": "Kaelen Ironheart",
+    "weaponMastery": "Longsword (Sap / Flex)"
+  },
+  "lastRoll": null,
+  "pendingCheck": {
+    "ability": "STR",
+    "dc": 12,
+    "sceneId": "sunken_shrine",
+    "skill": "Athletics"
+  },
+  "supportedIntents": [
+    "CONFIRM_CHARACTER_DRAFT",
+    "SWITCH_STARTER_ARCHETYPE",
+    "choose",
+    "PHYSICAL_DICE_ROLL",
+    "SWITCH_VIEW"
+  ],
+  "surfaceType": "story"
+}

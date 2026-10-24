@@ -1,0 +1,342 @@
+{
+  "blueprint": {
+    "components": [
+      {
+        "children": [
+          "welcome-card",
+          "main-split"
+        ],
+        "id": "root",
+        "props": {
+          "direction": "column",
+          "gap": "16"
+        },
+        "type": "Stack"
+      },
+      {
+        "children": [
+          "welcome-card-title",
+          "welcome-text",
+          "calibration-row"
+        ],
+        "id": "welcome-card",
+        "props": {
+          "padding": "16"
+        },
+        "type": "Card"
+      },
+      {
+        "id": "welcome-text",
+        "props": {
+          "text": "Welcome to the table! I'm your AI Dungeon Master. I'll bring the world and its people to life, referee the rules, and describe what happens when you act\u2014while you decide what your character attempts. Let's calibrate your experience and draft your starting hero."
+        },
+        "type": "Text"
+      },
+      {
+        "children": [
+          "badge-familiarity",
+          "badge-guidance",
+          "badge-edition"
+        ],
+        "id": "calibration-row",
+        "props": {
+          "direction": "row",
+          "gap": "10px"
+        },
+        "type": "Stack"
+      },
+      {
+        "id": "badge-familiarity",
+        "props": {
+          "text": "Familiarity: Beginner (New to D&D)",
+          "tone": "default"
+        },
+        "type": "Badge"
+      },
+      {
+        "id": "badge-guidance",
+        "props": {
+          "text": "Guidance: Full Guidance",
+          "tone": "accent"
+        },
+        "type": "Badge"
+      },
+      {
+        "id": "badge-edition",
+        "props": {
+          "text": "Rules: D&D 5th Edition (Revised 2024)",
+          "tone": "warn"
+        },
+        "type": "Badge"
+      },
+      {
+        "children": [
+          "left-col",
+          "right-col"
+        ],
+        "id": "main-split",
+        "props": {
+          "direction": "row",
+          "gap": "20px"
+        },
+        "type": "Stack"
+      },
+      {
+        "children": [
+          "draft-card"
+        ],
+        "id": "left-col",
+        "props": {
+          "direction": "column",
+          "gap": "12"
+        },
+        "type": "Stack"
+      },
+      {
+        "children": [
+          "action-card"
+        ],
+        "id": "right-col",
+        "props": {
+          "direction": "column",
+          "gap": "12"
+        },
+        "type": "Stack"
+      },
+      {
+        "children": [
+          "draft-card-title",
+          "draft-summary",
+          "abilities-row",
+          "vitals-row"
+        ],
+        "id": "draft-card",
+        "props": {
+          "padding": "16"
+        },
+        "type": "Card"
+      },
+      {
+        "id": "draft-summary",
+        "props": {
+          "text": "Level 1 Human Fighter \u00b7 Background: Soldier \u00b7 Origin Feat: Savage Attacker \u00b7 Mastery: Longsword (Sap / Flex)"
+        },
+        "type": "Text"
+      },
+      {
+        "children": [
+          "stat-str",
+          "stat-dex",
+          "stat-con",
+          "stat-int",
+          "stat-wis",
+          "stat-cha"
+        ],
+        "id": "abilities-row",
+        "props": {
+          "direction": "row",
+          "gap": "12px"
+        },
+        "type": "Stack"
+      },
+      {
+        "id": "stat-str",
+        "props": {
+          "label": "STR",
+          "value": "16 (+3)"
+        },
+        "type": "Stat"
+      },
+      {
+        "id": "stat-dex",
+        "props": {
+          "label": "DEX",
+          "value": "13 (+1)"
+        },
+        "type": "Stat"
+      },
+      {
+        "id": "stat-con",
+        "props": {
+          "label": "CON",
+          "value": "15 (+2)"
+        },
+        "type": "Stat"
+      },
+      {
+        "id": "stat-int",
+        "props": {
+          "label": "INT",
+          "value": "10 (+0)"
+        },
+        "type": "Stat"
+      },
+      {
+        "id": "stat-wis",
+        "props": {
+          "label": "WIS",
+          "value": "12 (+1)"
+        },
+        "type": "Stat"
+      },
+      {
+        "id": "stat-cha",
+        "props": {
+          "label": "CHA",
+          "value": "8 (-1)"
+        },
+        "type": "Stat"
+      },
+      {
+        "children": [
+          "draft-hp-bar",
+          "metric-ac"
+        ],
+        "id": "vitals-row",
+        "props": {
+          "direction": "row",
+          "gap": "16px"
+        },
+        "type": "Stack"
+      },
+      {
+        "id": "draft-hp-bar",
+        "props": {
+          "label": "Hit Points (12 / 12 HP)",
+          "max": 12,
+          "value": 12
+        },
+        "type": "ProgressBar"
+      },
+      {
+        "id": "metric-ac",
+        "props": {
+          "label": "Armor Class",
+          "value": "16 (Chain Mail)"
+        },
+        "type": "Stat"
+      },
+      {
+        "children": [
+          "action-card-title",
+          "btn-confirm",
+          "btn-switch-archetype",
+          "btn-adjust-guidance"
+        ],
+        "id": "action-card",
+        "props": {
+          "padding": "16"
+        },
+        "type": "Card"
+      },
+      {
+        "id": "btn-confirm",
+        "props": {
+          "action": {
+            "intent": "CONFIRM_CHARACTER_DRAFT",
+            "payloadKeys": [
+              "btn-confirm.characterName",
+              "btn-confirm.archetype",
+              "btn-confirm.edition",
+              "btn-confirm.guidance"
+            ]
+          },
+          "label": "\u2728 Confirm Character & Enter Adventure"
+        },
+        "type": "Button"
+      },
+      {
+        "id": "btn-switch-archetype",
+        "props": {
+          "action": {
+            "intent": "SWITCH_STARTER_ARCHETYPE",
+            "payloadKeys": [
+              "btn-switch-archetype.archetype"
+            ]
+          },
+          "label": "\ud83c\udfb2 Switch to Wizard Archetype"
+        },
+        "type": "Button"
+      },
+      {
+        "id": "btn-adjust-guidance",
+        "props": {
+          "action": {
+            "intent": "ADJUST_GUIDANCE",
+            "payloadKeys": [
+              "btn-adjust-guidance.current"
+            ]
+          },
+          "label": "\u2699\ufe0f Toggle Guidance Level"
+        },
+        "type": "Button"
+      },
+      {
+        "id": "welcome-card-title",
+        "props": {
+          "level": 3,
+          "text": "Table Welcome & DM Introduction"
+        },
+        "type": "Heading"
+      },
+      {
+        "id": "draft-card-title",
+        "props": {
+          "level": 3,
+          "text": "Starting Draft: Kaelen Ironheart"
+        },
+        "type": "Heading"
+      },
+      {
+        "id": "action-card-title",
+        "props": {
+          "level": 3,
+          "text": "Calibration & Decisions"
+        },
+        "type": "Heading"
+      }
+    ],
+    "dataModel": {
+      "btn-adjust-guidance.current": "Full Guidance",
+      "btn-confirm.archetype": "Fighter",
+      "btn-confirm.characterName": "Kaelen Ironheart",
+      "btn-confirm.edition": "D&D 5th Edition (Revised 2024)",
+      "btn-confirm.guidance": "Full Guidance",
+      "btn-switch-archetype.archetype": "Wizard"
+    },
+    "intents": [
+      "CONFIRM_CHARACTER_DRAFT",
+      "SWITCH_STARTER_ARCHETYPE",
+      "ADJUST_GUIDANCE"
+    ],
+    "surface": {
+      "id": "onboarding-stage-1-2",
+      "subtitle": "Stage 1 & 2: Introduction, Calibration & Character Draft",
+      "title": "Meet Your Dungeon Master",
+      "width": "wide"
+    }
+  },
+  "contract": "agentsurface-blueprint/0.1",
+  "hero": {
+    "STR": 16,
+    "ac": 16,
+    "archetype": "Fighter",
+    "confirmed": false,
+    "edition": "D&D 5th Edition (Revised 2024)",
+    "hp": 12,
+    "level": 1,
+    "maxHp": 12,
+    "name": "Kaelen Ironheart",
+    "weaponMastery": "Longsword (Sap / Flex)"
+  },
+  "lastRoll": null,
+  "pendingCheck": null,
+  "supportedIntents": [
+    "CONFIRM_CHARACTER_DRAFT",
+    "SWITCH_STARTER_ARCHETYPE",
+    "choose",
+    "PHYSICAL_DICE_ROLL",
+    "SWITCH_VIEW"
+  ],
+  "surfaceType": "onboarding"
+}

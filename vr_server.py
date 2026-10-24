@@ -16,9 +16,11 @@ import logging
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from audio_synth import default_audio_dir, generate_all_sfx
 from game_foundation import (
     AGENTSURFACE_ADAPTER_VERSION,
     STARTER_SCENARIO,
@@ -35,6 +37,15 @@ logger = logging.getLogger(__name__)
 EDITION = "D&D 5th Edition (Revised 2024)"
 MAX_BODY_BYTES = 65536
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+XR_ROOT = (Path(__file__).parent / "web" / "xr").resolve()
+XR_MIME = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".mjs": "text/javascript; charset=utf-8",
+    ".json": "application/json",
+    ".css": "text/css; charset=utf-8",
+}
+SFX_NAMES = frozenset({"dice_roll", "crit_fanfare"})
 
 #: The only source of starter stats. Switching archetype copies a row wholesale,
 #: so HP, AC and ability scores can never drift apart.
@@ -259,6 +270,32 @@ class VRServerRequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
 
+    def _send_file(self, path: Path, content_type: str) -> None:
+        payload = path.read_bytes()
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def _serve_xr(self, path: str) -> None:
+        relative = path.removeprefix("/xr").lstrip("/") or "index.html"
+        target = (XR_ROOT / relative).resolve()
+        content_type = XR_MIME.get(target.suffix)
+        if content_type is None or not target.is_relative_to(XR_ROOT) or not target.is_file():
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+            return
+        self._send_file(target, content_type)
+
+    def _serve_sfx(self, path: str) -> None:
+        name = path.removeprefix("/sfx/").removesuffix(".wav")
+        target = Path(default_audio_dir()) / f"{name}.wav"
+        if not path.endswith(".wav") or name not in SFX_NAMES or not target.is_file():
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+            return
+        self._send_file(target, "audio/wav")
+
     def do_GET(self) -> None:
         try:
             self._route_get(urlparse(self.path).path)
@@ -280,6 +317,10 @@ class VRServerRequestHandler(BaseHTTPRequestHandler):
                     "activeSurface": state.active_surface_type,
                 }
             self._send_json(HTTPStatus.OK, body)
+        elif path == "/xr" or path.startswith("/xr/"):
+            self._serve_xr(path)
+        elif path.startswith("/sfx/"):
+            self._serve_sfx(path)
         elif path == "/health":
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/plain")
@@ -360,8 +401,9 @@ def main(argv: list[str] | None = None) -> None:
             "Binding %s exposes a mutable game with no auth and CORS '*' to the network",
             args.host,
         )
+    generate_all_sfx(default_audio_dir())
     server = make_server(args.host, args.port)
-    logger.info("VR server listening on http://%s:%d", *server.server_address[:2])
+    logger.info("VR server listening on http://%s:%d/xr/", *server.server_address[:2])
     try:
         server.serve_forever()
     except KeyboardInterrupt:
