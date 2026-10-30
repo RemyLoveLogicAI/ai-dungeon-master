@@ -108,7 +108,7 @@ class TestFileBoundary(unittest.TestCase):
     def test_save_follows_symlink_without_replacing_it(self):
         for existing in (False, True):
             with self.subTest(existing=existing), tempfile.TemporaryDirectory() as directory:
-                root = Path(directory)
+                root = Path(directory).resolve()
                 target = root / "storage" / "encounter.json"
                 target.parent.mkdir()
                 if existing:
@@ -228,7 +228,7 @@ class TestFileBoundary(unittest.TestCase):
 
     def test_replace_observes_closed_synced_complete_sibling(self):
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "encounter.json"
+            path = Path(directory).resolve() / "encounter.json"
             save_log(make_log(1), path)
             updated = make_log(2)
             real_replace = os.replace
@@ -258,7 +258,7 @@ class TestFileBoundary(unittest.TestCase):
 
     def test_symlink_save_syncs_resolved_parent(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()
             target = root / "storage" / "encounter.json"
             target.parent.mkdir()
             link = root / "checkpoint.json"

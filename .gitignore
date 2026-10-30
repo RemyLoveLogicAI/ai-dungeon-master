@@ -15,6 +15,10 @@ htmlcov/
 .agentsroom/fork-context-*.txt
 .agents/mcp_config.json
 .claude/memories/
+.claude/
+.taskplane/
+.playwright-mcp/
+.omc/
 .devin/mcp_config.json
 .agents/mcp.json
 .omp/mcp.json

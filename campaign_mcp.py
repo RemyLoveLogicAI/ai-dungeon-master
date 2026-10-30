@@ -178,6 +178,40 @@ class MCPServer:
                 except (OSError, RuntimeError, ValueError, TypeError, KeyError):
                     return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Action failed"}]}}
 
+            elif name == "dm_create_campaign":
+                if set(args) != set():
+                    return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Invalid arguments"}]}}
+                try:
+                    res = self.client.request("POST", "/api/campaigns", {})
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "result": {
+                            "isError": False,
+                            "structuredContent": res,
+                            "content": [{"type": "text", "text": json.dumps(res)}],
+                        },
+                    }
+                except (OSError, RuntimeError, ValueError, TypeError, KeyError):
+                    return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Failed to create campaign"}]}}
+
+            elif name == "dm_reset":
+                if set(args) != {"campaign_id"} or not isinstance(args.get("campaign_id"), str) or ".." in args["campaign_id"] or "/" in args["campaign_id"]:
+                    return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Invalid campaign_id"}]}}
+                try:
+                    res = self.client.request("POST", f"/api/campaigns/{args['campaign_id']}/reset", {})
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "result": {
+                            "isError": False,
+                            "structuredContent": res,
+                            "content": [{"type": "text", "text": json.dumps(res)}],
+                        },
+                    }
+                except (OSError, RuntimeError, ValueError, TypeError, KeyError):
+                    return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Failed to reset campaign"}]}}
+
             return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": f"Unsupported tool: {name}"}]}}
 
         return {"jsonrpc": "2.0", "id": msg_id, "error": {"code": -32601, "message": f"Method {method!r} not found"}}

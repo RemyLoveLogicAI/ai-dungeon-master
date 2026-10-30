@@ -61,10 +61,7 @@ def test_provider_extracts_json_without_thought_content():
 
 def test_provider_block_is_explicit():
     provider = GeminiProvider(api_key="test-only")
-    with (
-        patch.object(provider, "_post", return_value={"promptFeedback": {"blockReason": "SAFETY"}}),
-        pytest.raises(GenerationError),
-    ):
+    with patch.object(provider, "_post", return_value={"promptFeedback": {"blockReason": "SAFETY"}}), pytest.raises(GenerationError):
         provider.generate_json("request", "system")
 
 
@@ -87,18 +84,59 @@ def test_invalid_provider_media_is_not_saved_as_an_image():
         provider.generate_image("paint")
 
 
-@pytest.mark.parametrize("payload", ["not-a-dict", {"title": "only"}])
-def test_presentation_rejects_a_bad_shape(payload):
-    with pytest.raises(GenerationError):
-        validate_presentation(payload)
+def test_validation_and_provider_error_edge_cases():
+    # 1. Non-dict presentation
+    with pytest.raises(GenerationError, match="must be a dictionary"):
+        validate_presentation("not-a-dict")
 
+    # 2. Missing required field
+    with pytest.raises(GenerationError, match="missing required field"):
+        validate_presentation({"title": "T"})
 
-def test_provider_rejects_empty_or_malformed_text():
+    # 3. Invalid surface blueprint
+    with pytest.raises(GenerationError, match="invalid surface blueprint"):
+        validate_presentation({
+            "title": "T", "narration": "N", "art_prompt": "A", "music_prompt": "M",
+            "surface": {"invalid": True},
+        })
+
     provider = GeminiProvider(api_key="test-only")
-    with patch.object(provider, "_post", return_value={}), pytest.raises(GenerationError):
-        provider.generate_json("request")
-    malformed = {"candidates": [{"content": {"parts": [{"text": "not json"}]}}]}
-    with patch.object(provider, "_post", return_value=malformed), pytest.raises(GenerationError):
-        provider.generate_json("request")
-    with patch.object(provider, "_post", return_value={}), pytest.raises(GenerationError):
-        provider.generate_music("quiet harp")
+    # 4. Default _post returns empty dict
+    assert provider._post({}) == {}
+
+    # 5. generate_json with no candidates
+    with patch.object(provider, "_post", return_value={"candidates": []}), pytest.raises(GenerationError, match="No candidates returned"):
+        provider.generate_json("prompt")
+
+    # 6. generate_json with candidate having no text
+    with patch.object(provider, "_post", return_value={"candidates": [{"content": {"parts": []}}]}), pytest.raises(GenerationError, match="No text output in response"):
+        provider.generate_json("prompt")
+
+    # 7. generate_json with malformed JSON
+    with patch.object(provider, "_post", return_value={"candidates": [{"content": {"parts": [{"text": "{bad-json"}]}}]}), pytest.raises(GenerationError, match="Malformed JSON"):
+        provider.generate_json("prompt")
+
+    # 8. generate_image with no candidates
+    with patch.object(provider, "_post", return_value={"candidates": []}), pytest.raises(GenerationError, match="No image candidates returned"):
+        provider.generate_image("prompt")
+
+    # 9. generate_image with invalid base64
+    with (
+        patch.object(provider, "_post", return_value={"candidates": [{"content": {"parts": [{"inlineData": {"data": "???not-base64???"}}]}}]}),
+        pytest.raises(GenerationError, match="Invalid base64 image data"),
+    ):
+        provider.generate_image("prompt")
+
+    # 10. generate_music with invalid base64
+    with (
+        patch.object(provider, "_post", return_value={"steps": [{"content": [{"type": "audio", "data": "???not-base64???"}]}]}),
+        pytest.raises(GenerationError, match="Invalid base64 audio data"),
+    ):
+        provider.generate_music("prompt")
+
+    # 11. generate_music with no audio data
+    with (
+        patch.object(provider, "_post", return_value={"steps": [{"content": [{"type": "text", "data": "no audio"}]}]}),
+        pytest.raises(GenerationError, match="No audio data found"),
+    ):
+        provider.generate_music("prompt")

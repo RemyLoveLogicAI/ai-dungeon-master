@@ -4,15 +4,20 @@ from __future__ import annotations
 
 import http.client
 import json
+import os
+import tempfile
 import threading
 import unittest
 from http import HTTPStatus
+from pathlib import Path
 from typing import Any
 from unittest import mock
 
 import vr_server
 from game_foundation import AGENTSURFACE_ADAPTER_VERSION, validate_agentsurface_v01
-from vr_server import ARCHETYPES, SUPPORTED_INTENTS, CampaignVRState, make_server
+from vr_server import ARCHETYPES, SUPPORTED_INTENTS, XR_ROOT, CampaignVRState, make_server
+
+FIXTURE_DIR = XR_ROOT / "fixtures"
 
 
 def confirmed_state(archetype: str = "Fighter") -> CampaignVRState:
@@ -292,6 +297,48 @@ class TestHTTP(unittest.TestCase):
         self.assertEqual(self.request("GET", "/nope")[0], 404)
         self.assertEqual(self.request("POST", "/nope", b"{}")[0], 404)
 
+    def test_xr_index_and_assets_are_served(self) -> None:
+        for path in ("/xr", "/xr/", "/xr/index.html"):
+            with self.subTest(path=path):
+                conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+                conn.request("GET", path)
+                response = conn.getresponse()
+                body = response.read()
+                conn.close()
+                self.assertEqual(response.status, 200)
+                self.assertTrue(response.getheader("Content-Type").startswith("text/html"))
+                self.assertIn(b"importmap", body)
+        status, raw = self.request("GET", "/xr/panel.js")
+        self.assertEqual(status, 200)
+        self.assertIn(b"buildPanel", raw)
+        self.assertEqual(self.request("GET", "/xr/fixtures/story.json")[0], 200)
+
+    def test_xr_rejects_traversal_and_unlisted_files(self) -> None:
+        for path in (
+            "/xr/../vr_server.py",
+            "/xr/../../pyproject.toml",
+            "/xr/missing.js",
+            "/xr/test",
+        ):
+            with self.subTest(path=path):
+                self.assertEqual(self.request("GET", path)[0], 404)
+
+    def test_sfx_serves_only_whitelisted_wavs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            for name in ("dice_roll", "sword_clash"):
+                (Path(tmp) / f"{name}.wav").write_bytes(b"RIFF")
+            with mock.patch.dict(os.environ, {"AI_DM_AUDIO_DIR": tmp}):
+                status, raw = self.request("GET", "/sfx/dice_roll.wav")
+                self.assertEqual((status, raw), (200, b"RIFF"))
+                for path in (
+                    "/sfx/sword_clash.wav",
+                    "/sfx/../../x.wav",
+                    "/sfx/dice_roll",
+                    "/sfx/crit_fanfare.wav",
+                ):
+                    with self.subTest(path=path):
+                        self.assertEqual(self.request("GET", path)[0], 404)
+
     def test_options_preflight(self) -> None:
         self.assertEqual(self.request("OPTIONS", "/api/intent")[0], 204)
 
@@ -324,6 +371,44 @@ class TestHTTP(unittest.TestCase):
         self.assertEqual(hero["archetype"], "Fighter")  # 20 toggles return to the start
 
 
+def fixture_payloads() -> dict[str, str]:
+    """Server responses the WebXR client is tested against, keyed by fixture name."""
+    state = CampaignVRState()
+    with state.lock:
+        onboarding = state.snapshot()
+    _, story = state.apply("CONFIRM_CHARACTER_DRAFT", {})
+    _, shrine_pending = state.apply("choose", {"choice_id": "follow_the_bell"})
+    bodies = {"onboarding": onboarding, "story": story, "shrine_pending": shrine_pending}
+    return {
+        name: json.dumps(
+            {k: v for k, v in body.items() if k not in ("result", "journal")},
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
+        for name, body in bodies.items()
+    }
+
+
+class TestClientFixtures(unittest.TestCase):
+    def test_fixture_generation_is_deterministic(self) -> None:
+        self.assertEqual(fixture_payloads(), fixture_payloads())
+
+    def test_client_fixtures_match_server(self) -> None:
+        payloads = fixture_payloads()
+        if os.environ.get("UPDATE_FIXTURES") == "1":
+            FIXTURE_DIR.mkdir(parents=True, exist_ok=True)
+            for name, text in payloads.items():
+                (FIXTURE_DIR / f"{name}.json").write_text(text, encoding="utf-8")
+        for name, text in payloads.items():
+            with self.subTest(fixture=name):
+                path = FIXTURE_DIR / f"{name}.json"
+                committed = path.read_text(encoding="utf-8") if path.is_file() else None
+                self.assertEqual(
+                    committed, text, "run `UPDATE_FIXTURES=1 uv run pytest test_vr_server.py`"
+                )
+
+
 class TestMain(unittest.TestCase):
     def run_main(self, argv: list[str]) -> tuple[mock.MagicMock, Any]:
         fake = mock.MagicMock()
@@ -331,10 +416,12 @@ class TestMain(unittest.TestCase):
         fake.serve_forever.side_effect = KeyboardInterrupt
         with (
             mock.patch.object(vr_server, "make_server", return_value=fake) as factory,
+            mock.patch.object(vr_server, "generate_all_sfx") as generate,
             self.assertLogs("vr_server", level="INFO") as logs,
         ):
             vr_server.main(argv)
         fake.server_close.assert_called_once()
+        generate.assert_called_once_with(vr_server.default_audio_dir())
         return factory, logs
 
     def test_defaults_to_loopback_without_warning(self) -> None:

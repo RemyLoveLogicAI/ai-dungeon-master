@@ -50,6 +50,31 @@ class TestTurnOrchestrator(unittest.TestCase):
         self.assertEqual(result.audio.cue_type, "ambient_drone")
         validate_agentsurface_v01(result.surface, root="root")
 
+    def test_investigate_apparatus_success_and_crit(self) -> None:
+        from d20_rules import ScriptedDiceSource
+
+        # Test natural 20 critical success
+        self.orchestrator.dice = ScriptedDiceSource([20])
+        result = self.orchestrator.execute_turn(self.hero, "INVESTIGATE_APPARATUS")
+        self.assertTrue(result.mechanic_resolution["success"])
+        self.assertEqual(result.audio.cue_type, "crit_fanfare")
+        self.assertIn("Silver Dragon", result.narration)
+        validate_agentsurface_v01(result.surface, root="root")
+
+        # Test normal success (d20=15)
+        self.orchestrator.dice = ScriptedDiceSource([15])
+        result2 = self.orchestrator.execute_turn(self.hero, "INVESTIGATE_APPARATUS")
+        self.assertTrue(result2.mechanic_resolution["success"])
+        self.assertEqual(result2.audio.cue_type, "dice_roll")
+        validate_agentsurface_v01(result2.surface, root="root")
+
+    def test_general_exploration_turn(self) -> None:
+        result = self.orchestrator.execute_turn(self.hero, "EXPLORE_PERIMETER")
+        self.assertEqual(result.intent, "EXPLORE_PERIMETER")
+        self.assertTrue(result.mechanic_resolution["success"])
+        self.assertIn("explore perimeter", result.narration)
+        validate_agentsurface_v01(result.surface, root="root")
+
 
 if __name__ == "__main__":
     unittest.main()

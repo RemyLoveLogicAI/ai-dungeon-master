@@ -156,3 +156,35 @@ def test_origin_class_choices_are_recorded_and_not_shared():
     wizard["equipment"].clear()
     assert build_starter_character({"class": "Wizard"})["equipment"]
     assert len(character_catalog()["classes"]) == 4
+
+
+def test_campaign_validation_edge_cases(tmp_path):
+    with pytest.raises(ValueError, match="persistent database path"):
+        CampaignStore(":memory:")
+
+    store = CampaignStore(tmp_path / "test.db")
+    with pytest.raises(TypeError, match="Invalid campaign id"):
+        store.get(123)
+    with pytest.raises(ValueError, match="campaign id"):
+        store.get("not-a-uuid")
+    with pytest.raises(ValueError, match="campaign id"):
+        store.get("12345678-1234-1234-1234-123456789abc".upper())
+
+    cid = store.create({"title": "test"})["id"]
+    with pytest.raises(ValueError, match="action"):
+        store.commit(cid, 0, "req-1", "   ", {})
+    with pytest.raises(TypeError, match="action"):
+        store.commit(cid, 0, "req-1", 123, {})
+    with pytest.raises(TypeError, match="State must be an object"):
+        store.create(["not", "a", "dict"])
+
+    # Test concept > 2000 characters
+    with pytest.raises(ValueError, match="Concept must be at most 2000 characters"):
+        build_starter_character({"class": "Wizard", "concept": "x" * 2001})
+
+    # Test media corruption check
+    with store._connection() as conn:
+        conn.execute("UPDATE campaigns SET state=? WHERE id=?", ('{"revision": 0, "media": "corrupted"}', cid))
+        conn.commit()
+    with pytest.raises(TypeError, match="Campaign media must be an object"):
+        store.update_media(cid, 0, "image", {"url": "/test.png"})
