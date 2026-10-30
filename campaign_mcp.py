@@ -33,7 +33,7 @@ class CampaignClient:
             with self.opener.open(req) as resp:
                 raw = resp.read()
                 return json.loads(raw.decode("utf-8")) if raw else {}
-        except Exception:
+        except Exception:  # noqa: BLE001
             # Sanitize error to avoid leaking credentials or sensitive tokens
             raise RuntimeError("Campaign client communication error")
 
@@ -136,7 +136,7 @@ class MCPServer:
                             "content": [{"type": "text", "text": json.dumps(res)}],
                         },
                     }
-                except Exception:
+                except Exception:  # noqa: BLE001
                     return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Failed to get campaign"}]}}
 
             elif name == "dm_status":
@@ -155,7 +155,7 @@ class MCPServer:
                             "content": [{"type": "text", "text": json.dumps(sanitized)}],
                         },
                     }
-                except Exception:
+                except Exception:  # noqa: BLE001
                     return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Failed to get status"}]}}
 
             elif name == "dm_act":
@@ -175,8 +175,42 @@ class MCPServer:
                             "content": [{"type": "text", "text": json.dumps(res)}],
                         },
                     }
-                except Exception:
+                except Exception:  # noqa: BLE001
                     return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Action failed"}]}}
+
+            elif name == "dm_create_campaign":
+                if set(args) != set():
+                    return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Invalid arguments"}]}}
+                try:
+                    res = self.client.request("POST", "/api/campaigns", {})
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "result": {
+                            "isError": False,
+                            "structuredContent": res,
+                            "content": [{"type": "text", "text": json.dumps(res)}],
+                        },
+                    }
+                except Exception:  # noqa: BLE001
+                    return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Failed to create campaign"}]}}
+
+            elif name == "dm_reset":
+                if set(args) != {"campaign_id"} or not isinstance(args.get("campaign_id"), str) or ".." in args["campaign_id"] or "/" in args["campaign_id"]:
+                    return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Invalid campaign_id"}]}}
+                try:
+                    res = self.client.request("POST", f"/api/campaigns/{args['campaign_id']}/reset", {})
+                    return {
+                        "jsonrpc": "2.0",
+                        "id": msg_id,
+                        "result": {
+                            "isError": False,
+                            "structuredContent": res,
+                            "content": [{"type": "text", "text": json.dumps(res)}],
+                        },
+                    }
+                except Exception:  # noqa: BLE001
+                    return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": "Failed to reset campaign"}]}}
 
             return {"jsonrpc": "2.0", "id": msg_id, "result": {"isError": True, "content": [{"type": "text", "text": f"Unsupported tool: {name}"}]}}
 

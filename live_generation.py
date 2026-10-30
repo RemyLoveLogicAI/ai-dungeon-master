@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import base64
 import json
-import urllib.error
-import urllib.request
 from typing import Any
 
 from game_foundation import validate_agentsurface_v01
@@ -42,7 +40,7 @@ def validate_presentation(data: dict[str, Any]) -> dict[str, Any]:
     for component in surface.get("components", []):
         if component.get("type") == "Image":
             src = component.get("props", {}).get("src", "")
-            if src.startswith("http://") or src.startswith("https://"):
+            if src.startswith(("http://", "https://")):
                 raise GenerationError(f"remote image urls not permitted in generated UI: {src!r}")
 
     return data

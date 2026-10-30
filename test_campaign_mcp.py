@@ -98,7 +98,7 @@ def test_stdio_is_only_newline_json_and_notifications_are_silent():
                 json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
                 json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})]
     result = subprocess.run([sys.executable, "campaign_mcp.py"],
-                            input="\n".join(messages) + "\n", capture_output=True, text=True)
+                            input="\n".join(messages) + "\n", capture_output=True, text=True, check=False)
     replies = [json.loads(line) for line in result.stdout.splitlines()]
     assert result.returncode == 0
     assert len(replies) == 3
@@ -106,3 +106,82 @@ def test_stdio_is_only_newline_json_and_notifications_are_silent():
     tools = replies[-1]["result"]["tools"]
     assert len(tools) == 5
     assert next(t for t in tools if t["name"] == "dm_get_campaign")["annotations"]["readOnlyHint"]
+
+
+def test_mcp_additional_tools_and_error_branches():
+    client = FakeClient()
+    server = ready(client)
+
+    # 1. tools/list when initialized
+    res = server.handle({"jsonrpc": "2.0", "id": 10, "method": "tools/list"})
+    assert len(res["result"]["tools"]) == 5
+
+    # 2. tools/call before initialized
+    uninit_server = MCPServer(client)
+    res_uninit = uninit_server.handle({"jsonrpc": "2.0", "id": 11, "method": "tools/call", "params": {"name": "dm_status", "arguments": {}}})
+    assert res_uninit["error"]["code"] == -32002
+
+    # 3. dm_create_campaign
+    res_create = call(server, "dm_create_campaign", {})
+    assert not res_create["result"]["isError"]
+    assert call(server, "dm_create_campaign", {"invalid": 1})["result"]["isError"]
+
+    # 4. dm_reset
+    res_reset = call(server, "dm_reset", {"campaign_id": "abc"})
+    assert not res_reset["result"]["isError"]
+    assert call(server, "dm_reset", {"campaign_id": "../bad"})["result"]["isError"]
+    assert call(server, "dm_reset", {"campaign_id": "a/b"})["result"]["isError"]
+    assert call(server, "dm_reset", {})["result"]["isError"]
+
+    # 5. dm_status with invalid arguments
+    assert call(server, "dm_status", {"extra": 1})["result"]["isError"]
+
+    # 6. dm_act with bad arguments
+    assert call(server, "dm_act", {"campaign_id": "../evil"})["result"]["isError"]
+
+    # 7. Unsupported tool
+    assert call(server, "unknown_tool", {})["result"]["isError"]
+
+    # 8. Client request exceptions
+    class ErrorClient:
+        def request(self, method, path, body=None):
+            raise RuntimeError("Backend failure")
+
+    err_server = ready(ErrorClient())
+    assert call(err_server, "dm_status", {})["result"]["isError"]
+    assert call(err_server, "dm_get_campaign", {"campaign_id": "abc"})["result"]["isError"]
+    assert call(err_server, "dm_create_campaign", {})["result"]["isError"]
+    assert call(err_server, "dm_reset", {"campaign_id": "abc"})["result"]["isError"]
+    assert call(err_server, "dm_act", {"campaign_id": "abc", "revision": 1, "request_id": "r", "action": "a", "intent": "i"})["result"]["isError"]
+
+
+def test_client_validation_and_request_success():
+    # Loopback host rejection
+    with pytest.raises(ValueError, match="Only loopback host allowed"):
+        CampaignClient("http://8.8.8.8:8766")
+
+    # Successful client request
+    client = CampaignClient("http://127.0.0.1:8766")
+    from unittest.mock import MagicMock
+    mock_resp = MagicMock()
+    mock_resp.read.return_value = b'{"status": "ok"}'
+    mock_resp.__enter__.return_value = mock_resp
+
+    with patch.object(client.opener, "open", return_value=mock_resp):
+        res = client.request("GET", "/api/status")
+        assert res == {"status": "ok"}
+
+
+def test_main_in_process():
+    import campaign_mcp
+    input_data = (
+        json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-11-25"}}) + "\n"
+        + "{bad json\n"
+        + "\n"
+        + json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n"
+    )
+    with patch("sys.stdin", io.StringIO(input_data)), patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+        campaign_mcp.main()
+        output = mock_out.getvalue()
+        assert "serverInfo" in output
+        assert "Parse error" in output
