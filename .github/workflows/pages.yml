@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # The data generator imports only the standard-library engine; no install
       # step and no third-party dependency is required to build the demo.
