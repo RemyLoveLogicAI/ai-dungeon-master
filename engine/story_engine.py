@@ -23,6 +23,7 @@ from engine.generative_ui import (
     TacticalGridState,
 )
 from engine.world_generator import LocationNode, WorldState, generate_procedural_world
+from engine.scene_visuals import render_scene_illustration
 
 logger = logging.getLogger("DungeonMaster")
 
@@ -47,14 +48,52 @@ class PlayerCharacter:
         ]
     )
     gold: int = 145
+    portrait_id: str = ""
+
+    _PRIMARY_ABILITY = {"Fighter": "str", "Rogue": "dex", "Wizard": "int", "Cleric": "wis"}
+
+    @classmethod
+    def from_sheet(cls, sheet: dict) -> "PlayerCharacter":
+        """Map a campaign_core starter character sheet onto the combat-facing shape.
+
+        Combat math (d20_rules.py) only consumes the plain numeric fields below;
+        the richer SRD sheet (skills, saves, spell lists, etc.) stays in the
+        persisted campaign state untouched.
+        """
+        primary = cls._PRIMARY_ABILITY.get(sheet["class"], "str")
+        attack_bonus = sheet["proficiency_bonus"] + sheet["modifiers"][primary]
+        spell_slots = sheet.get("resources", {}).get("spell_slots_1", {})
+        return cls(
+            name=sheet["name"],
+            class_title=sheet["class"],
+            max_hp=sheet["max_hp"],
+            current_hp=sheet["hp"],
+            ac=sheet["ac"],
+            attack_bonus=attack_bonus,
+            spell_slots=spell_slots.get("current", 0),
+            max_spell_slots=spell_slots.get("max", 0),
+            level=sheet["level"],
+            inventory=list(sheet["equipment"]),
+            gold=sheet["gold"],
+            portrait_id=sheet.get("portrait_id", ""),
+        )
 
 
 class StoryEngine:
-    def __init__(self, ollama_url: str = "http://127.0.0.1:11434", default_model: str = "llama3.2:3b"):
+    def __init__(
+        self,
+        ollama_url: str = "http://127.0.0.1:11434",
+        default_model: str = "llama3.2:3b",
+        player: PlayerCharacter | None = None,
+        enable_dynamic_narrative: bool = True,
+        ollama_timeout_seconds: float = 3.0,
+    ):
         self.ollama_url = ollama_url
         self.default_model = default_model
+        self.enable_dynamic_narrative = enable_dynamic_narrative
+        self.ollama_timeout_seconds = ollama_timeout_seconds
         self.world: WorldState = generate_procedural_world(seed=1337)
-        self.player: PlayerCharacter = PlayerCharacter()
+        self.player: PlayerCharacter = player or PlayerCharacter()
         self.narrative_history: list[dict[str, str]] = []
         self.active_combat_enemy: EncounterEnemy | None = None
         self.active_combat_grid: TacticalGridState | None = None
@@ -198,7 +237,7 @@ class StoryEngine:
                     is_player=True,
                     stance="Defensive",
                     ac=self.player.ac,
-                    icon="hero",
+                    icon=self.player.portrait_id or "hero",
                 ),
                 GridCombatant(
                     id="enemy_1",
@@ -525,4 +564,49 @@ class StoryEngine:
 
     def process_turn(self, player_input: str) -> GenerativeUIPackage:
         """Main entry point: Generates narrative and compiles the dynamic Generative UI."""
-        return self._generate_procedural_response(player_input)
+        ui_package = self._generate_procedural_response(player_input)
+        ui_package.narrative_text = self._narrate(player_input, ui_package.narrative_text)
+        curr_loc = self.get_current_location()
+        ui_package.scene_illustration = render_scene_illustration(
+            location_name=curr_loc.name,
+            biome=curr_loc.biome,
+            description=curr_loc.description,
+            tension_level=self.tension_curve,
+        )
+        return ui_package
+
+    def _narrate(self, player_input: str, baseline_narrative: str) -> str:
+        """Re-narrate the deterministic template text through a local Ollama model.
+
+        Game state (combat math, stances, loot, routing) is always decided by the
+        procedural engine first; this only dresses up the resulting narrative string.
+        Any failure to reach Ollama (offline, timeout, bad response) falls back to
+        the baseline template text untouched, so gameplay never blocks on the network.
+        """
+        if not self.enable_dynamic_narrative:
+            return baseline_narrative
+
+        prompt = (
+            "You are a Dungeon Master narrating a dark-fantasy tabletop RPG scene. "
+            "Rewrite the following scene beat in vivid, second-person prose (2-4 sentences). "
+            "Keep every name, number, and outcome exactly as stated; do not invent new events.\n\n"
+            f"Player action: {player_input}\n\n"
+            f"Scene beat:\n{baseline_narrative}"
+        )
+        try:
+            payload = json.dumps(
+                {"model": self.default_model, "prompt": prompt, "stream": False}
+            ).encode()
+            req = urllib.request.Request(
+                f"{self.ollama_url}/api/generate",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=self.ollama_timeout_seconds) as resp:
+                data = json.loads(resp.read().decode())
+                text = data.get("response", "").strip()
+                return text or baseline_narrative
+        except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError, KeyError, ValueError):
+            logger.info("Ollama narration unavailable; falling back to template narrative.")
+            return baseline_narrative

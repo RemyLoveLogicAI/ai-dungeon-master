@@ -1,5 +1,13 @@
 // client/src/services/api.ts
-import { GenerativeUIPackage, PlayerCharacter, WorldState } from '../types';
+import {
+  CampaignSummary,
+  CharacterCatalog,
+  CharacterSheetData,
+  CreateCharacterInput,
+  GenerativeUIPackage,
+  PlayerCharacter,
+  WorldState,
+} from '../types';
 
 const API_BASE = '/api';
 
@@ -84,6 +92,43 @@ export async function sendPlayerAction(action: string, cardId?: string): Promise
       },
     };
   }
+}
+
+export async function fetchCharacterCatalog(): Promise<CharacterCatalog> {
+  const res = await fetch(`${API_BASE}/characters/catalog`);
+  if (!res.ok) throw new Error('Failed to load character catalog');
+  return await res.json();
+}
+
+export async function fetchCampaignList(): Promise<CampaignSummary[]> {
+  const res = await fetch(`${API_BASE}/characters`);
+  if (!res.ok) throw new Error('Failed to load campaigns');
+  const data = await res.json();
+  return data.campaigns;
+}
+
+export async function createCharacter(
+  input: CreateCharacterInput
+): Promise<{ campaign_id: string; character: CharacterSheetData }> {
+  const res = await fetch(`${API_BASE}/characters`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Character creation failed' }));
+    throw new Error(err.detail || 'Character creation failed');
+  }
+  return await res.json();
+}
+
+export async function activateCharacter(
+  campaignId: string
+): Promise<{ campaign_id: string; character: CharacterSheetData } | null> {
+  const res = await fetch(`${API_BASE}/characters/${campaignId}/activate`, { method: 'POST' });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Failed to resume character');
+  return await res.json();
 }
 
 export async function rollCombatAttack(params: {

@@ -4,6 +4,7 @@ __pycache__/
 dist/
 audio_output/
 test_audio/
+/data/
 *.egg-info/
 .hypothesis/
 .coverage
@@ -22,3 +23,4 @@ htmlcov/
 .devin/mcp_config.json
 .agents/mcp.json
 .omp/mcp.json
+campaigns.db

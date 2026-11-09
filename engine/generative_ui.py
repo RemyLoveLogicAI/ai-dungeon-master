@@ -110,6 +110,7 @@ class GenerativeUIPackage:
     loot: list[LootItem] | None = None
     soundtrack: SoundtrackDirective | None = None
     suggested_ui_layout: str = "EXPLORATION"  # EXPLORATION, COMBAT, DIALOGUE, ATLAS, LOOT
+    scene_illustration: Any | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

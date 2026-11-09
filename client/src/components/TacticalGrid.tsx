@@ -1,7 +1,8 @@
 // client/src/components/TacticalGrid.tsx
 import React from 'react';
 import { TacticalGridState, GridCombatant } from '../types';
-import { Shield, Flame, Sword, Target } from 'lucide-react';
+import { Shield, Flame, Target } from 'lucide-react';
+import { PortraitIcon } from './PortraitIcon';
 
 interface TacticalGridProps {
   gridState: TacticalGridState;
@@ -91,7 +92,11 @@ export const TacticalGrid: React.FC<TacticalGridProps> = ({
                   >
                     {/* Icon */}
                     {combatant.is_player ? (
-                      <Shield className="w-4 h-4 text-amber-200" />
+                      combatant.icon && combatant.icon !== 'hero' ? (
+                        <PortraitIcon portraitId={combatant.icon} className="w-4 h-4 text-amber-200" />
+                      ) : (
+                        <Shield className="w-4 h-4 text-amber-200" />
+                      )
                     ) : (
                       <Flame className="w-4 h-4 text-red-300" />
                     )}

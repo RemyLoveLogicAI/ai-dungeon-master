@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { PlayerCharacter } from '../types';
 import { Shield, Heart, Sparkles, Coins, Package, ChevronDown } from 'lucide-react';
+import { PortraitIcon } from './PortraitIcon';
 
 interface CharacterSheetProps {
   player: PlayerCharacter | null;
@@ -18,14 +19,19 @@ export const CharacterSheet: React.FC<CharacterSheetProps> = ({ player }) => {
     <div className="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-4 shadow-xl backdrop-blur-md flex flex-col gap-3">
       {/* Player Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-bold text-sm text-slate-100 flex items-center gap-1.5">
-            {player.name}
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
-              Lvl {player.level}
-            </span>
-          </h3>
-          <p className="text-[11px] text-slate-400 font-mono">{player.class_title}</p>
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-full bg-slate-800 border border-amber-500/40 flex items-center justify-center shrink-0">
+            <PortraitIcon portraitId={player.portrait_id} className="w-5 h-5 text-amber-300" />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm text-slate-100 flex items-center gap-1.5">
+              {player.name}
+              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                Lvl {player.level}
+              </span>
+            </h3>
+            <p className="text-[11px] text-slate-400 font-mono">{player.class_title}</p>
+          </div>
         </div>
 
         {/* AC Badge */}
