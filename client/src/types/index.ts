@@ -78,6 +78,17 @@ export interface LootItem {
   value_gold: number;
 }
 
+export interface SceneIllustration {
+  location_name: string;
+  biome: string;
+  art_prompt: string;
+  image_url: string;
+  mood: string;
+  lighting: string;
+  composition_style: string;
+  svg_data: string;
+}
+
 export interface GenerativeUIPackage {
   narrative_text: string;
   location_name: string;
@@ -89,6 +100,7 @@ export interface GenerativeUIPackage {
   loot?: LootItem[] | null;
   soundtrack?: SoundtrackDirective | null;
   suggested_ui_layout: 'EXPLORATION' | 'COMBAT' | 'DIALOGUE' | 'ATLAS' | 'LOOT';
+  scene_illustration?: SceneIllustration | null;
 }
 
 export interface Faction {
@@ -142,4 +154,62 @@ export interface PlayerCharacter {
   level: number;
   inventory: string[];
   gold: number;
+  portrait_id: string;
+}
+
+export interface CharacterClassOption {
+  name: string;
+  background: string;
+  description: string;
+}
+
+export interface PortraitOption {
+  id: string;
+  label: string;
+}
+
+export interface CharacterCatalog {
+  edition: string;
+  species: string[];
+  level: number;
+  classes: CharacterClassOption[];
+  portraits: PortraitOption[];
+  scope: string;
+}
+
+export interface CharacterSheetData {
+  name: string;
+  concept: string;
+  appearance: string;
+  portrait_id: string;
+  class: string;
+  species: string;
+  level: number;
+  background: string;
+  abilities: Record<string, number>;
+  modifiers: Record<string, number>;
+  ac: number;
+  hp: number;
+  max_hp: number;
+  equipment: string[];
+  gold: number;
+  spells: { cantrips: string[]; prepared: string[]; spellbook: string[] };
+}
+
+export interface CampaignSummary {
+  id: string;
+  revision: number;
+  title: string;
+  phase: string;
+  character_name: string;
+}
+
+export interface CreateCharacterInput {
+  name: string;
+  concept?: string;
+  appearance?: string;
+  portrait_id?: string;
+  class: string;
+  species?: string;
+  level?: number;
 }

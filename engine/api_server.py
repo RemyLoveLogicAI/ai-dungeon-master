@@ -5,16 +5,20 @@ Provides REST and WebSocket endpoints for Generative UI, audio synthesis, and DM
 """
 
 import os
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from audio_synth import generate_all_sfx
+from campaign_core import CampaignStore, character_catalog
 from d20_rules import AdvantageMode, DamageType, resolve_attack
-from engine.story_engine import StoryEngine
+from engine.character_service import create_character, delete_character, get_current_character
+from engine.scene_visuals import render_scene_illustration
+from engine.story_engine import PlayerCharacter, StoryEngine
 from engine.world_generator import generate_procedural_world
 
 app = FastAPI(title="Aegis AI Dungeon Master Engine", version="1.0.0")
@@ -28,9 +32,53 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-engine = StoryEngine()
 SFX_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "audio_output")
 sfx_cache = generate_all_sfx(SFX_DIR)
+
+_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
+campaign_store = CampaignStore(os.path.join(_DATA_DIR, "campaigns.db"))
+
+
+class SessionState:
+    """Per-session play state: one story engine and one active-campaign pointer.
+
+    Campaign persistence (campaign_store, below) is shared across sessions by
+    design -- only in-memory gameplay state needs isolating so that two
+    sessions activating different characters don't clobber each other's
+    turn, combat, or world state.
+    """
+
+    def __init__(self) -> None:
+        self.engine: StoryEngine = StoryEngine()
+        self.active_campaign_id: str | None = None
+
+
+_sessions: dict[str, SessionState] = {}
+_DEFAULT_SESSION_ID = "default"
+
+
+def get_session_id(x_session_id: str | None = Header(default=None, alias="X-Session-ID")) -> str:
+    return x_session_id or _DEFAULT_SESSION_ID
+
+
+def get_session(session_id: str = Depends(get_session_id)) -> SessionState:
+    state = _sessions.get(session_id)
+    if state is None:
+        state = SessionState()
+        _sessions[session_id] = state
+    return state
+
+
+class CreateCharacterRequest(BaseModel):
+    name: str
+    concept: str = ""
+    appearance: str = ""
+    portrait_id: str = ""
+    character_class: str = Field(default="Fighter", alias="class")
+    species: str = "Human"
+    level: int = 1
+
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class PlayerActionRequest(BaseModel):
@@ -52,7 +100,8 @@ class AttackRequest(BaseModel):
 
 
 @app.get("/api/health")
-def get_health():
+def get_health(session: Annotated[SessionState, Depends(get_session)]):
+    engine = session.engine
     ollama_ok = engine.check_ollama_available()
     models = engine.list_ollama_models() if ollama_ok else []
     return {
@@ -66,7 +115,8 @@ def get_health():
 
 
 @app.get("/api/world/current")
-def get_world():
+def get_world(session: Annotated[SessionState, Depends(get_session)]):
+    engine = session.engine
     return {
         "world": {
             "id": engine.world.id,
@@ -84,7 +134,8 @@ def get_world():
 
 
 @app.post("/api/world/generate")
-def regenerate_world():
+def regenerate_world(session: Annotated[SessionState, Depends(get_session)]):
+    engine = session.engine
     engine.world = generate_procedural_world()
     engine.active_combat_enemy = None
     engine.active_combat_grid = None
@@ -93,28 +144,140 @@ def regenerate_world():
     return {"message": "New world forged", "world_name": engine.world.name}
 
 
+
+@app.get("/api/scene/current")
+def get_current_scene(session: Annotated[SessionState, Depends(get_session)]):
+    loc = session.engine.get_current_location()
+    illustration = render_scene_illustration(
+        location_name=loc.name,
+        biome=loc.biome,
+        description=loc.description,
+        tension_level=session.engine.tension_curve,
+    )
+    return {"illustration": illustration.to_dict()}
+
+
+@app.get("/api/scene/image/{location_name}")
+def get_scene_image(location_name: str, session: Annotated[SessionState, Depends(get_session)]):
+    target_loc = None
+    for loc in session.engine.world.locations:
+        if loc.name.lower() == location_name.lower():
+            target_loc = loc
+            break
+    if target_loc is None:
+        target_loc = session.engine.get_current_location()
+
+    illustration = render_scene_illustration(
+        location_name=target_loc.name,
+        biome=target_loc.biome,
+        description=target_loc.description,
+        tension_level=session.engine.tension_curve,
+    )
+    return Response(
+        content=illustration.svg_data,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
 @app.get("/api/player")
-def get_player():
+def get_player(session: Annotated[SessionState, Depends(get_session)]):
+    player = session.engine.player
     return {
         "player": {
-            "name": engine.player.name,
-            "class_title": engine.player.class_title,
-            "current_hp": engine.player.current_hp,
-            "max_hp": engine.player.max_hp,
-            "ac": engine.player.ac,
-            "spell_slots": engine.player.spell_slots,
-            "max_spell_slots": engine.player.max_spell_slots,
-            "attack_bonus": engine.player.attack_bonus,
-            "level": engine.player.level,
-            "inventory": engine.player.inventory,
-            "gold": engine.player.gold,
+            "name": player.name,
+            "class_title": player.class_title,
+            "current_hp": player.current_hp,
+            "max_hp": player.max_hp,
+            "ac": player.ac,
+            "spell_slots": player.spell_slots,
+            "max_spell_slots": player.max_spell_slots,
+            "attack_bonus": player.attack_bonus,
+            "level": player.level,
+            "inventory": player.inventory,
+            "gold": player.gold,
+            "portrait_id": player.portrait_id,
         }
     }
 
 
+@app.get("/api/characters/catalog")
+def get_character_catalog():
+    return character_catalog()
+
+
+@app.get("/api/characters")
+def list_characters():
+    return {"campaigns": campaign_store.list_summaries()}
+
+
+@app.post("/api/characters")
+def create_new_character(
+    req: CreateCharacterRequest,
+    session: Annotated[SessionState, Depends(get_session)],
+):
+    try:
+        campaign = create_character(campaign_store, {
+            "name": req.name,
+            "concept": req.concept,
+            "appearance": req.appearance,
+            "portrait_id": req.portrait_id,
+            "class": req.character_class,
+            "species": req.species,
+            "level": req.level,
+        })
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    session.active_campaign_id = campaign["id"]
+    session.engine.player = PlayerCharacter.from_sheet(campaign["character"])
+    session.engine.narrative_history = []
+    session.engine._initialize_story()
+    return {"campaign_id": campaign["id"], "character": campaign["character"]}
+
+
+@app.get("/api/characters/current")
+def get_active_character(session: Annotated[SessionState, Depends(get_session)]):
+    if session.active_campaign_id is None:
+        return {"campaign_id": None, "character": None}
+    character = get_current_character(campaign_store, session.active_campaign_id)
+    return {"campaign_id": session.active_campaign_id, "character": character}
+
+
+@app.post("/api/characters/{campaign_id}/activate")
+def activate_character(campaign_id: str, session: Annotated[SessionState, Depends(get_session)]):
+    try:
+        character = get_current_character(campaign_store, campaign_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid campaign id")
+    if character is None:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    session.active_campaign_id = campaign_id
+    session.engine.player = PlayerCharacter.from_sheet(character)
+    return {"campaign_id": campaign_id, "character": character}
+
+
+@app.delete("/api/characters/{campaign_id}")
+def remove_character(campaign_id: str):
+    try:
+        deleted = delete_character(campaign_store, campaign_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid campaign id")
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    for state in _sessions.values():
+        if state.active_campaign_id == campaign_id:
+            state.active_campaign_id = None
+    return {"campaign_id": campaign_id, "deleted": True}
+
+
 @app.post("/api/dm/interact")
-def player_interact(req: PlayerActionRequest):
-    ui_package = engine.process_turn(req.action)
+def player_interact(
+    req: PlayerActionRequest,
+    session: Annotated[SessionState, Depends(get_session)],
+):
+    ui_package = session.engine.process_turn(req.action)
     return {"response": ui_package.to_dict()}
 
 
