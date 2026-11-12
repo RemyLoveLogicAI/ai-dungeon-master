@@ -7,7 +7,6 @@ for biomes, locations, and narrative transitions.
 
 from __future__ import annotations
 
-import hashlib
 import html
 from dataclasses import asdict, dataclass
 from typing import Any
@@ -140,8 +139,6 @@ def _generate_procedural_svg(
     tension: int,
 ) -> str:
     """Generate a responsive 16:9 cinematic dark-fantasy vector illustration."""
-    seed_int = int(hashlib.md5(f"{location_name}:{biome}".encode("utf-8")).hexdigest()[:8], 16)
-    
     # Tension modulates rune glow opacity and storm density
     glow_intensity = min(1.0, max(0.3, tension / 100.0 + 0.3))
     

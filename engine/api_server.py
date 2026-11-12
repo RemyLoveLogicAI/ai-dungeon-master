@@ -5,11 +5,11 @@ Provides REST and WebSocket endpoints for Generative UI, audio synthesis, and DM
 """
 
 import os
+from typing import Annotated
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
-from engine.scene_visuals import render_scene_illustration
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -17,6 +17,7 @@ from audio_synth import generate_all_sfx
 from campaign_core import CampaignStore, character_catalog
 from d20_rules import AdvantageMode, DamageType, resolve_attack
 from engine.character_service import create_character, delete_character, get_current_character
+from engine.scene_visuals import render_scene_illustration
 from engine.story_engine import PlayerCharacter, StoryEngine
 from engine.world_generator import generate_procedural_world
 
@@ -99,7 +100,7 @@ class AttackRequest(BaseModel):
 
 
 @app.get("/api/health")
-def get_health(session: SessionState = Depends(get_session)):
+def get_health(session: Annotated[SessionState, Depends(get_session)]):
     engine = session.engine
     ollama_ok = engine.check_ollama_available()
     models = engine.list_ollama_models() if ollama_ok else []
@@ -114,7 +115,7 @@ def get_health(session: SessionState = Depends(get_session)):
 
 
 @app.get("/api/world/current")
-def get_world(session: SessionState = Depends(get_session)):
+def get_world(session: Annotated[SessionState, Depends(get_session)]):
     engine = session.engine
     return {
         "world": {
@@ -133,7 +134,7 @@ def get_world(session: SessionState = Depends(get_session)):
 
 
 @app.post("/api/world/generate")
-def regenerate_world(session: SessionState = Depends(get_session)):
+def regenerate_world(session: Annotated[SessionState, Depends(get_session)]):
     engine = session.engine
     engine.world = generate_procedural_world()
     engine.active_combat_enemy = None
@@ -145,7 +146,7 @@ def regenerate_world(session: SessionState = Depends(get_session)):
 
 
 @app.get("/api/scene/current")
-def get_current_scene(session: SessionState = Depends(get_session)):
+def get_current_scene(session: Annotated[SessionState, Depends(get_session)]):
     loc = session.engine.get_current_location()
     illustration = render_scene_illustration(
         location_name=loc.name,
@@ -157,7 +158,7 @@ def get_current_scene(session: SessionState = Depends(get_session)):
 
 
 @app.get("/api/scene/image/{location_name}")
-def get_scene_image(location_name: str, session: SessionState = Depends(get_session)):
+def get_scene_image(location_name: str, session: Annotated[SessionState, Depends(get_session)]):
     target_loc = None
     for loc in session.engine.world.locations:
         if loc.name.lower() == location_name.lower():
@@ -180,7 +181,7 @@ def get_scene_image(location_name: str, session: SessionState = Depends(get_sess
 
 
 @app.get("/api/player")
-def get_player(session: SessionState = Depends(get_session)):
+def get_player(session: Annotated[SessionState, Depends(get_session)]):
     player = session.engine.player
     return {
         "player": {
@@ -211,7 +212,10 @@ def list_characters():
 
 
 @app.post("/api/characters")
-def create_new_character(req: CreateCharacterRequest, session: SessionState = Depends(get_session)):
+def create_new_character(
+    req: CreateCharacterRequest,
+    session: Annotated[SessionState, Depends(get_session)],
+):
     try:
         campaign = create_character(campaign_store, {
             "name": req.name,
@@ -233,7 +237,7 @@ def create_new_character(req: CreateCharacterRequest, session: SessionState = De
 
 
 @app.get("/api/characters/current")
-def get_active_character(session: SessionState = Depends(get_session)):
+def get_active_character(session: Annotated[SessionState, Depends(get_session)]):
     if session.active_campaign_id is None:
         return {"campaign_id": None, "character": None}
     character = get_current_character(campaign_store, session.active_campaign_id)
@@ -241,7 +245,7 @@ def get_active_character(session: SessionState = Depends(get_session)):
 
 
 @app.post("/api/characters/{campaign_id}/activate")
-def activate_character(campaign_id: str, session: SessionState = Depends(get_session)):
+def activate_character(campaign_id: str, session: Annotated[SessionState, Depends(get_session)]):
     try:
         character = get_current_character(campaign_store, campaign_id)
     except ValueError:
@@ -269,7 +273,10 @@ def remove_character(campaign_id: str):
 
 
 @app.post("/api/dm/interact")
-def player_interact(req: PlayerActionRequest, session: SessionState = Depends(get_session)):
+def player_interact(
+    req: PlayerActionRequest,
+    session: Annotated[SessionState, Depends(get_session)],
+):
     ui_package = session.engine.process_turn(req.action)
     return {"response": ui_package.to_dict()}
 

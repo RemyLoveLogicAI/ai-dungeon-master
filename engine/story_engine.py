@@ -9,6 +9,7 @@ import logging
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
+from typing import ClassVar
 
 from d20_rules import AdvantageMode, DamageType, resolve_attack
 from encounter_ai import CombatActionType, EncounterEnemy
@@ -22,8 +23,8 @@ from engine.generative_ui import (
     SoundtrackDirective,
     TacticalGridState,
 )
-from engine.world_generator import LocationNode, WorldState, generate_procedural_world
 from engine.scene_visuals import render_scene_illustration
+from engine.world_generator import LocationNode, WorldState, generate_procedural_world
 
 logger = logging.getLogger("DungeonMaster")
 
@@ -50,7 +51,12 @@ class PlayerCharacter:
     gold: int = 145
     portrait_id: str = ""
 
-    _PRIMARY_ABILITY = {"Fighter": "str", "Rogue": "dex", "Wizard": "int", "Cleric": "wis"}
+    _PRIMARY_ABILITY: ClassVar[dict[str, str]] = {
+        "Fighter": "str",
+        "Rogue": "dex",
+        "Wizard": "int",
+        "Cleric": "wis",
+    }
 
     @classmethod
     def from_sheet(cls, sheet: dict) -> "PlayerCharacter":
