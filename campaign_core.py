@@ -163,6 +163,16 @@ class CampaignStore:
         with self._connection() as connection:
             return self._read(connection, campaign_id)
 
+    def delete(self, campaign_id: str) -> None:
+        """Remove a campaign and its replayed request log. Raises NotFoundError if missing."""
+        _campaign_id(campaign_id)
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            self._read(connection, campaign_id)  # raises NotFoundError if missing
+            connection.execute("DELETE FROM requests WHERE campaign_id=?", (campaign_id,))
+            connection.execute("DELETE FROM campaigns WHERE id=?", (campaign_id,))
+            connection.commit()
+
     def list_summaries(self) -> list[dict[str, Any]]:
         with self._connection() as connection:
             rows = connection.execute("SELECT state FROM campaigns ORDER BY rowid DESC").fetchall()
@@ -320,6 +330,16 @@ _PRESETS: dict[str, dict[str, Any]] = {
 }
 
 
+PORTRAITS: tuple[dict[str, str], ...] = (
+    {"id": "sentinel", "label": "Sentinel"},
+    {"id": "shadow", "label": "Shadow"},
+    {"id": "arcane", "label": "Arcane"},
+    {"id": "devout", "label": "Devout"},
+    {"id": "wanderer", "label": "Wanderer"},
+)
+_PORTRAIT_IDS = {portrait["id"] for portrait in PORTRAITS}
+
+
 def character_catalog() -> dict[str, Any]:
     """Describe the actual implemented scope without promising arbitrary builds."""
     return {
@@ -327,16 +347,18 @@ def character_catalog() -> dict[str, Any]:
         "classes": [{"name": name, "background": preset["background"],
                      "description": f"Level 1 Human {name}; fixed {preset['background']} starter"}
                     for name, preset in _PRESETS.items()],
-        "scope": "Four curated starter packages; no other editions, custom stats, or advancement yet",
+        "portraits": list(PORTRAITS),
+        "scope": "Four curated starter packages; no other editions, custom stats, or advancement yet. "
+                 "Portraits are stylized icons, not AI-generated art.",
         "rule_sources": [SRD_SOURCE],
     }
 
 
 def build_starter_character(data: dict[str, Any]) -> dict[str, Any]:
     """Build one vetted starter. Reject unsupported mechanical overrides explicitly."""
-    allowed = {"name", "concept", "class", "species", "level"}
+    allowed = {"name", "concept", "appearance", "portrait_id", "class", "species", "level"}
     if not isinstance(data, dict) or set(data) - allowed:
-        raise ValueError("Only name, concept, class, species, and level are supported")
+        raise ValueError("Only name, concept, appearance, portrait_id, class, species, and level are supported")
     class_name = data.get("class", "Fighter")
     if not isinstance(class_name, str) or class_name not in _PRESETS:
         raise ValueError("Choose Fighter, Rogue, Wizard, or Cleric")
@@ -347,10 +369,16 @@ def build_starter_character(data: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Only level 1 starters are implemented")
     name = data.get("name", "Unnamed adventurer")
     concept = data.get("concept", "")
+    appearance = data.get("appearance", "")
+    portrait_id = data.get("portrait_id", "")
     if not isinstance(name, str) or not 1 <= len(name.strip()) <= 80:
         raise ValueError("Name must be 1–80 characters")
     if not isinstance(concept, str) or len(concept) > 2000:
         raise ValueError("Concept must be at most 2000 characters")
+    if not isinstance(appearance, str) or len(appearance) > 1000:
+        raise ValueError("Appearance must be at most 1000 characters")
+    if not isinstance(portrait_id, str) or (portrait_id and portrait_id not in _PORTRAIT_IDS):
+        raise ValueError("Choose a known portrait id or leave it unset")
     # A JSON copy prevents callers modifying the catalog through returned sheets.
     preset = json.loads(json.dumps(_PRESETS[class_name]))
     abilities = dict(zip(_ABILITIES, preset["base"]))
@@ -398,7 +426,8 @@ def build_starter_character(data: dict[str, Any]) -> dict[str, Any]:
             })
     hp = preset["hit_die"] + modifiers["con"]
     return {
-        "name": name.strip(), "concept": concept, "class": class_name, "species": "Human",
+        "name": name.strip(), "concept": concept, "appearance": appearance, "portrait_id": portrait_id,
+        "class": class_name, "species": "Human",
         "background": preset["background"], "level": 1, "abilities": abilities,
         "modifiers": modifiers, "proficiency_bonus": 2, "hp": hp, "max_hp": hp,
         "ac": preset["ac"], "ac_basis": {"Fighter": "Chain Mail 16 + Defense 1",

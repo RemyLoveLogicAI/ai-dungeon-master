@@ -8,11 +8,13 @@ import {
   LocationNode,
 } from './types';
 import {
+  activateCharacter,
   checkBackendHealth,
   fetchCurrentWorld,
   fetchPlayerState,
   sendPlayerAction,
 } from './services/api';
+import { CharacterCreationWizard } from './components/CharacterCreationWizard';
 import { PlatformNav, PlatformSurface } from './components/PlatformNav';
 import { D20DiceRoller } from './components/D20DiceRoller';
 import { TacticalGrid } from './components/TacticalGrid';
@@ -23,10 +25,14 @@ import { CharacterSheet } from './components/CharacterSheet';
 import { AudioDirector } from './components/AudioDirector';
 import { DMConsole } from './components/DMConsole';
 import { LootModal } from './components/LootModal';
+import { SceneViewport } from './components/SceneViewport';
 import { Send, Sparkles, Compass, ShieldAlert } from 'lucide-react';
+
+const CAMPAIGN_STORAGE_KEY = 'adm_campaign_id';
 
 export function App() {
   const [currentSurface, setCurrentSurface] = useState<PlatformSurface>('desktop');
+  const [view, setView] = useState<'checking' | 'wizard' | 'game'>('checking');
   const [world, setWorld] = useState<WorldState | null>(null);
   const [player, setPlayer] = useState<PlayerCharacter | null>(null);
   const [uiPackage, setUiPackage] = useState<GenerativeUIPackage | null>(null);
@@ -43,22 +49,53 @@ export function App() {
     available_models: [] as string[],
   });
 
-  // Initial Load
+  const enterWorld = async () => {
+    const w = await fetchCurrentWorld();
+    if (w) setWorld(w);
+
+    const p = await fetchPlayerState();
+    if (p) setPlayer(p);
+
+    const initialPackage = await sendPlayerAction('survey the sanctuary');
+    setUiPackage(initialPackage);
+    setNarrativeLog([initialPackage.narrative_text]);
+    setView('game');
+  };
+
+  const handleCharacterReady = (campaignId: string) => {
+    localStorage.setItem(CAMPAIGN_STORAGE_KEY, campaignId);
+    enterWorld();
+  };
+
+  // Lets a returning player leave the current game to resume a different saved
+  // character or forge a new one. Non-destructive: the active campaign stays in
+  // localStorage/the backend until the player actually picks a different one.
+  const handleOpenCharacterSwitch = () => setView('wizard');
+
+  // Closing the wizard without picking anything returns to the game currently in
+  // progress (only offered once a character is already loaded).
+  const handleCancelCharacterSwitch = () => setView('game');
+
+  // Initial Load: resume a returning player's saved character, otherwise show creation.
   useEffect(() => {
     async function loadData() {
       const health = await checkBackendHealth();
       setBackendHealth(health);
 
-      const w = await fetchCurrentWorld();
-      if (w) setWorld(w);
-
-      const p = await fetchPlayerState();
-      if (p) setPlayer(p);
-
-      // Initial interaction
-      const initialPackage = await sendPlayerAction('survey the sanctuary');
-      setUiPackage(initialPackage);
-      setNarrativeLog([initialPackage.narrative_text]);
+      const savedCampaignId = localStorage.getItem(CAMPAIGN_STORAGE_KEY);
+      if (savedCampaignId) {
+        try {
+          const result = await activateCharacter(savedCampaignId);
+          if (result) {
+            await enterWorld();
+            return;
+          }
+        } catch {
+          // Backend unreachable or campaign gone — fall through to creation.
+        }
+        localStorage.removeItem(CAMPAIGN_STORAGE_KEY);
+      }
+      setView('wizard');
     }
     loadData();
   }, []);
@@ -116,6 +153,24 @@ export function App() {
   const locationName = uiPackage?.location_name || world?.name || 'Sanctum of the Dawn';
   const tension = uiPackage?.tension_level || 20;
 
+  if (view === 'checking') {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-400 flex flex-col items-center justify-center gap-3">
+        <Sparkles className="w-8 h-8 text-amber-400 animate-pulse" />
+        <span className="text-sm">Opening the realm archives...</span>
+      </div>
+    );
+  }
+
+  if (view === 'wizard') {
+    return (
+      <CharacterCreationWizard
+        onComplete={handleCharacterReady}
+        onCancel={player ? handleCancelCharacterSwitch : undefined}
+      />
+    );
+  }
+
   return (
     <div
       className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 ${
@@ -128,6 +183,7 @@ export function App() {
         onChangeSurface={setCurrentSurface}
         onOpenAtlas={() => setShowAtlas(true)}
         onToggleDiceModal={() => setShowDiceModal(!showDiceModal)}
+        onSwitchCharacter={handleOpenCharacterSwitch}
         locationName={locationName}
       />
 
@@ -181,6 +237,13 @@ export function App() {
                 />
               </div>
             )}
+
+            {/* Real-Time Scene Viewport (Cinematic Location & Narrative Illustration) */}
+            <SceneViewport
+              illustration={uiPackage?.scene_illustration}
+              locationName={locationName}
+              tensionLevel={uiPackage?.tension_level || 25}
+            />
 
             {/* Living Narrative Chronicle */}
             <div className="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 shadow-2xl backdrop-blur-md flex flex-col gap-4 max-h-[500px] overflow-y-auto">

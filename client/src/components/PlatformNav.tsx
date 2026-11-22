@@ -1,6 +1,6 @@
 // client/src/components/PlatformNav.tsx
 import React from 'react';
-import { Smartphone, Monitor, Tv, Map, Dices, Maximize2 } from 'lucide-react';
+import { Smartphone, Monitor, Tv, Map, Dices, Maximize2, Users } from 'lucide-react';
 
 export type PlatformSurface = 'mobile' | 'desktop' | 'tv';
 
@@ -9,6 +9,7 @@ interface PlatformNavProps {
   onChangeSurface: (surface: PlatformSurface) => void;
   onOpenAtlas: () => void;
   onToggleDiceModal: () => void;
+  onSwitchCharacter: () => void;
   locationName: string;
 }
 
@@ -17,6 +18,7 @@ export const PlatformNav: React.FC<PlatformNavProps> = ({
   onChangeSurface,
   onOpenAtlas,
   onToggleDiceModal,
+  onSwitchCharacter,
   locationName,
 }) => {
   const toggleFullScreen = () => {
@@ -90,6 +92,16 @@ export const PlatformNav: React.FC<PlatformNavProps> = ({
             <span>Cast/TV</span>
           </button>
         </div>
+
+        {/* Switch Character Button */}
+        <button
+          onClick={onSwitchCharacter}
+          className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition shadow-sm active:scale-95"
+          title="Return to character selection"
+        >
+          <Users className="w-3.5 h-3.5 text-sky-400" />
+          <span className="hidden sm:inline">Characters</span>
+        </button>
 
         {/* Atlas Button */}
         <button
