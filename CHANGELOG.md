@@ -5,6 +5,50 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.0.0] - 2026-11-24
+
+First stable release. The deterministic campaign service executes the exported
+MCP Games definition end to end — create, act, journal, reset — over the durable
+SQLite campaign store with revision-checked commits and request-id replay.
+The loopback `game_server` now serves the `/api/status`, `/api/campaigns`,
+`/api/campaigns/{id}/actions`, and `/api/campaigns/{id}/reset` endpoints that
+`web/play.js` and `campaign_mcp.py` were built against, so the live campaign
+client is playable instead of dead.
+
+### Added
+- `campaign_service.py`: deterministic DM turn loop over the
+  `mcp-games-game-definition/1` export — scene navigation, choice matching,
+  journal, reset — with AgentSurface v0.1 blueprints validated before they
+  leave the service.
+- `game_server.py`: loopback FastAPI app exposing the campaign HTTP contract
+  plus static hosting for `web/`, with per-process write-token enforcement on
+  browser-origin mutations.
+- `test_campaign_service.py` (13 tests) and `test_game_server.py` (12 tests)
+  covering the full create → act → advance → reset lifecycle, idempotent
+  request replay, stale-revision 409s, 404s, token enforcement, and static
+  client serving.
+- `test_web_accessibility.py` (17 tests) pinning the accessible-alternatives
+  contract: live regions for narration, `role=alert` failure surfacing,
+  labelled controls, media text alternatives, and visible focus styling.
+- All previously unshipped runtime modules (`campaign_core`, `campaign_mcp`,
+  `live_generation`, `turn_orchestrator`, `vr_server`, `game_server`,
+  `campaign_service`) now ship in the wheel.
+
+### Changed
+- Version `0.1.0` → `1.0.0`; classifier `Development Status :: 3 - Alpha` →
+  `5 - Production/Stable`.
+- `web/play.js` reports the server's `dm_label` ("Built-in scenario DM")
+  instead of always claiming "Live AI DM" when a deterministic engine is
+  configured.
+
+### Fixed
+- `MVP-1.0-CHECKLIST.md` now records verification evidence for all eight
+  release gates; the two previously failing gates (campaign persistence,
+  accessibility testing) are closed by this release's backend and test work.
+
+[1.0.0]: https://github.com/RemyLoveLogicAI/ai-dungeon-master/releases/tag/v1.0.0
+
 ## [Unreleased]
 
 ### Added

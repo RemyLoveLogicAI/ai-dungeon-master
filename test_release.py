@@ -12,9 +12,7 @@ from scripts import verify_release
 def prepare_repo(tmp_path: Path, version: str, checklist: str = "") -> None:
     (tmp_path / "docs/product").mkdir(parents=True, exist_ok=True)
     (tmp_path / "scripts").mkdir(exist_ok=True)
-    (tmp_path / "pyproject.toml").write_text(
-        f'[project]\nname = "test"\nversion = "{version}"\n'
-    )
+    (tmp_path / "pyproject.toml").write_text(f'[project]\nname = "test"\nversion = "{version}"\n')
     (tmp_path / "CHANGELOG.md").write_text(f"## [{version}] - 2026-10-13\n")
     (tmp_path / "docs/product/MVP-1.0-CHECKLIST.md").write_text(checklist)
     (tmp_path / "docs/product/FEATURE_LOG.md").write_text(
@@ -135,8 +133,8 @@ def test_release_command_line_requires_a_tag(monkeypatch):
 
 
 def test_release_command_line_verifies_metadata(monkeypatch):
-    monkeypatch.setattr(sys, "argv", ["verify_release.py", "v0.1.0"])
-    with mock_tags("v0.1.0"):
+    monkeypatch.setattr(sys, "argv", ["verify_release.py", "v1.0.0"])
+    with mock_tags("v1.0.0"):
         runpy.run_path(
             str(Path(verify_release.__file__)),
             run_name="__main__",

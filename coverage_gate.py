@@ -34,6 +34,8 @@ from typing import Any
 FLOORS: dict[str, float] = {
     "audio_synth.py": 94.0,
     "campaign_core.py": 97.0,
+    "campaign_service.py": 96.0,
+    "game_server.py": 96.0,
     "campaign_mcp.py": 97.0,
     "combat_events.py": 93.0,
     "combat_log.py": 95.0,
@@ -68,10 +70,7 @@ def read_percentages(report: Path) -> dict[str, float]:
     """Return ``{module: percent covered}`` from a coverage JSON report."""
     payload: dict[str, Any] = json.loads(report.read_text(encoding="utf-8"))
     files: dict[str, Any] = payload["files"]
-    return {
-        name: float(entry["summary"]["percent_covered"])
-        for name, entry in files.items()
-    }
+    return {name: float(entry["summary"]["percent_covered"]) for name, entry in files.items()}
 
 
 def find_stale_modules(reported: dict[str, float], report: Path) -> list[str]:
@@ -133,8 +132,7 @@ def main(
     report = Path(args[0]) if args else DEFAULT_REPORT
     if not report.exists():
         print(
-            f"coverage gate: {report} is missing; run "
-            "`pytest --cov --cov-report=json` first",
+            f"coverage gate: {report} is missing; run `pytest --cov --cov-report=json` first",
             file=sys.stderr,
         )
         return 1

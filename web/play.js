@@ -197,7 +197,7 @@
   $('soundtrack').addEventListener('error', () => { $('audio-toggle').textContent = 'Music unavailable'; $('audio-toggle').disabled = true; });
   async function connect() {
     setBusy(true);
-    try { status = await api('/api/status'); $('provider-status').textContent = status.configured ? '● Live AI DM' : '○ AI provider not configured'; $('provider-status').classList.toggle('live', Boolean(status.configured)); updateCampaignList(); if (!status.configured) notice('Live generation needs a configured cloud provider on the server. No story generation is being simulated.'); const saved = savedCampaign(); if (saved) await loadCampaign(saved); }
+    try { status = await api('/api/status'); $('provider-status').textContent = status.configured ? '● ' + (status.dm_label || 'Live AI DM') : '○ AI provider not configured'; $('provider-status').classList.toggle('live', Boolean(status.configured)); updateCampaignList(); if (!status.configured) notice('Live generation needs a configured cloud provider on the server. No story generation is being simulated.'); const saved = savedCampaign(); if (saved) await loadCampaign(saved); }
     catch (error) { $('provider-status').textContent = '○ Connection unavailable'; notice(error.message, connect); }
     finally { setBusy(false); }
   }

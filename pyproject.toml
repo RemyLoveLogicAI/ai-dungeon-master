@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ai-dungeon-master"
-version = "0.1.0"
+version = "1.0.0"
 description = "Self-contained D20 tactical combat engine with stance AI, procedural audio, generative UI, and multi-surface DM experience."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -18,7 +18,7 @@ keywords = ["d20", "dungeons-and-dragons", "rules-engine", "procedural-audio", "
 authors = [{ name = "RemyLoveLogicAI" }]
 maintainers = [{ name = "RemyLoveLogicAI" }]
 classifiers = [
-  "Development Status :: 3 - Alpha",
+  "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
@@ -61,7 +61,7 @@ dm-tui = "engine.dm_tui:run_tui"
 dev = ["pytest>=8", "pytest-cov>=6", "hypothesis>=6", "jsonschema>=4.18", "ruff>=0.14", "mypy>=1.11"]
 
 [tool.hatch.build.targets.wheel]
-only-include = ["combat_runner.py", "combat_events.py", "combat_log.py", "combat_schema.py", "d20_rules.py", "encounter_ai.py", "encounter_generator.py", "audio_synth.py", "game_foundation.py", "genui.py", "tui_runner.py", "desktop_launcher.py", "engine", "schemas/combat-encounter-log-1.schema.json", "py.typed"]
+only-include = ["combat_runner.py", "combat_events.py", "combat_log.py", "combat_schema.py", "d20_rules.py", "encounter_ai.py", "encounter_generator.py", "audio_synth.py", "game_foundation.py", "genui.py", "tui_runner.py", "desktop_launcher.py", "campaign_core.py", "campaign_service.py", "campaign_mcp.py", "game_server.py", "live_generation.py", "turn_orchestrator.py", "vr_server.py", "engine", "schemas/combat-encounter-log-1.schema.json", "py.typed"]
 sources = ["."]
 
 [tool.ruff]
@@ -84,6 +84,8 @@ files = [
   "game_foundation.py",
   "genui.py",
   "tui_runner.py",
+  "campaign_service.py",
+  "game_server.py",
   "combat_runner.py",
   "coverage_gate.py",
   "web/build_demo.py",
