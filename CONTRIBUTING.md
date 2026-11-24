@@ -29,13 +29,61 @@ The optional schema check needs its extra:
 uv sync --dev --extra schema
 ```
 
+## Commands reference
+
+<!-- AUTO-GENERATED: regenerated from pyproject.toml and client/package.json; edit the sources, not this table -->
+
+Python console scripts (`pyproject.toml` `[project.scripts]`):
+
+| Command | What it runs |
+| --- | --- |
+| `ai-dungeon-master` / `dungeon-master` | Simulated encounter (`combat_runner:run_simulated_encounter`) |
+| `dungeon-master-tui` / `dm-tui` | Terminal UI encounter (`tui_runner:main` / `engine.dm_tui:run_tui`) |
+| `dm-desktop` | Desktop launcher (`desktop_launcher:main`) |
+
+Development commands:
+
+| Command | Purpose |
+| --- | --- |
+| `uv sync --dev` | Install the locked dev environment |
+| `uv sync --dev --extra schema` | Dev environment plus the optional `jsonschema` schema extra |
+| `uv run pytest -v` | Run the test suite |
+| `uv run ruff check .` | Lint (ruff, locked version) |
+| `uv run mypy` | Type-check the shipped modules (`[tool.mypy]` file list) |
+| `uv run pytest --cov --cov-report=json && uv run python coverage_gate.py` | Coverage: project total gate + per-module floors |
+| `uv build` | Build `dist/` wheel + sdist |
+| `uv run python web/build_demo.py` | Regenerate `web/demo-data.json` from the engine |
+| `uv run uvicorn engine.api_server:app --reload --port 8000` | FastAPI + React dev backend |
+| `uv run python -m vr_server --host 127.0.0.1 --port 8000` | Zero-dependency VR/XR server (`/xr/` client, `/api/surface`, `/api/intent`) |
+| `uv run uvicorn game_server:app --host 127.0.0.1 --port 8766` | Loopback campaign API for `web/play.js` + `campaign_mcp.py` (run from the repo root; the module ships in the wheel, but the `web/` static client and `client/dist` assets are excluded — use a checkout for the full UI) |
+
+Client commands (`client/`, bun — `bun.lock` is committed):
+
+| Command | Purpose |
+| --- | --- |
+| `bun run dev` | Vite dev server on :5173; proxies `/api` and `/ws` to :8000 |
+| `bun run build` | `tsc -b && vite build` into `client/dist/` |
+| `bun run lint` | oxlint |
+| `bun run preview` | Preview the production build |
+| `bunx cap sync android` | Sync web assets into `client/android` |
+| `bunx cap open android` | Open the Android project |
+
+`test_driver.py` is a runnable end-to-end driver (`python test_driver.py`),
+not a pytest module: its `__test__ = False` flag keeps pytest from collecting
+its `test_*` functions. `main()` writes `test_driver_receipt.json` to the
+hardcoded path `/private/tmp/ai-dm-feat-pr/test_driver_receipt.json` — create
+that directory first or the run fails at the final receipt write.
+
 ## What CI checks
 
-Every push runs `ci.yml`: the lockfile is verified against `pyproject.toml`,
-Ruff lints, pytest runs under the total coverage gate on Python 3.10–3.14, the
-per-module floors are enforced on Python 3.12, and a build job installs the
-wheel into a throwaway virtualenv and runs both console entry points
-(`dungeon-master`, `dungeon-master-tui`). A change that only passes locally but
+Pushes to `main` and pull requests run `ci.yml`: the lockfile is verified
+against `pyproject.toml`, Ruff lints, pytest runs under the total coverage
+gate on Python 3.10–3.14, the per-module floors are enforced on Python 3.12,
+and a build job installs the wheel into a throwaway virtualenv and
+smoke-tests three of the five console scripts (`ai-dungeon-master`,
+`dungeon-master`, `dungeon-master-tui` — `dm-tui` and `dm-desktop` are not
+exercised) plus a license check. A change
+that only passes locally but
 breaks the installed wheel is still a failing change.
 
 Run the same commands CI does before you open a pull request (ruff, mypy,

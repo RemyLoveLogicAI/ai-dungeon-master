@@ -1,0 +1,122 @@
+Codemap / docs sync report — 2026-11-24 (round 2 refresh)
+Repo: /tmp/adm-verify (ai-dungeon-master)
+
+== Codemaps ==
+Status: INITIAL GENERATION — no prior versions existed under docs/CODEMAPS/.
+Files added:
+  docs/CODEMAPS/architecture.md   (~950 tok est, 52 files scanned)
+  docs/CODEMAPS/backend.md        (~700 tok est, 12 files scanned)
+  docs/CODEMAPS/frontend.md       (~800 tok est, 20 files scanned)
+  docs/CODEMAPS/data.md           (~550 tok est, 4 files scanned)
+  docs/CODEMAPS/dependencies.md   (~600 tok est, 3 files scanned)
+
+== Docs added/updated ==
+  docs/ENV.md      (new) — AI_DM_AUDIO_DIR, AI_DM_LOG_DIR, AI_DM_CAMPAIGN_DB,
+                    XDG_CACHE_HOME, UPDATE_FIXTURES. No .env.example exists;
+                    table generated from os.environ reads in source.
+  docs/RUNBOOK.md  (new) — local run (dm-desktop / dm-tui / uvicorn+vite /
+                    vr_server / game_server), API route tables for all three
+                    servers plus FastAPI auto-registered docs routes and
+                    conditional static mounts, health checks, persistence,
+                    release pipeline, rollback.
+  CONTRIBUTING.md  (edited) — new "Commands reference" section after
+                    "Development setup"; AUTO-GENERATED marker present;
+                    test_driver.py documented as a runnable driver, not a
+                    pytest module (__test__ = False; verified: pytest
+                    collects 0 tests from it) with its hardcoded receipt
+                    path called out.
+
+== Env vars found ==
+  AI_DM_AUDIO_DIR      audio_synth.py:215-226   (honored by tui_runner and
+                        vr_server via default_audio_dir(); combat_runner
+                        uses <cwd>/audio_output unless audio_dir passed;
+                        engine/dm_tui generates none; engine/api_server
+                        ignores it, generating <repo>/audio_output at import)
+  AI_DM_LOG_DIR        combat_log.py:51,274-282 (default_log_dir(); TUI
+                        --resume fallback; does NOT affect explicit
+                        save_log/load_log paths, which resolve vs cwd)
+  AI_DM_CAMPAIGN_DB    game_server.py:46        (game_server only; injected
+                        into CampaignService. api_server opens its own store
+                        at fixed <repo>/data/campaigns.db; campaign_mcp is a
+                        stdio->HTTP adapter with no CampaignStore)
+  XDG_CACHE_HOME       shared fallback for audio/log dirs
+  UPDATE_FIXTURES      test_vr_server.py:399 (test-only fixture regen)
+
+== Docs staleness ==
+No 90-day flags. Oldest doc last-commit: docs/integrations.md,
+docs/product/{FEATURE_LOG,PRD-TEMPLATE,README}.md, docs/roadmap.md
+2026-10-13; newest: docs/product/MVP-1.0-CHECKLIST.md 2026-11-24. All docs
+touched within ~6 weeks. Full list (git log -1 per file):
+  2026-10-13  docs/integrations.md, docs/product/FEATURE_LOG.md,
+              docs/product/PRD-TEMPLATE.md, docs/product/README.md,
+              docs/roadmap.md
+  2026-10-16  docs/CORE-GAME-LOOP-SPEC.md, docs/dnd-bible-facet-review-pack-2026-10-15.md,
+              docs/dnd-player-experience.md, docs/encounter-generator-v0.1-spec.md,
+              docs/testing/{strict-candidate-adapter.tdd,generated-demo.tdd}.md
+  2026-10-17  docs/architecture.md, docs/vr-production-architecture.md,
+              docs/live-prototype-plan.md
+  2026-10-29  docs/dnd-online-experience-walkthrough.md
+  2026-11-22  docs/testing/character-creation-acceptance-plan.md
+  2026-11-24  docs/product/MVP-1.0-CHECKLIST.md
+
+== Corrections applied during review ==
+  dependencies.md: websockets row corrected — declared in pyproject but no
+    @app.websocket route exists; vite /ws proxy has no upstream.
+    desktop_launcher.py exception noted — it imports uvicorn.
+    PyPI/TestPyPI row corrected — publish-pypi + release jobs both
+    `needs: build`; TestPyPI stage removed in commit d0edbaf.
+  data.md: "logids/tokens" typo fixed to "campaign ids and request ids";
+    campaign ids corrected to canonical UUIDs (request ids use the _TOKEN
+    regex); state shape now includes stage and game; audio/log default-dir
+    bullets clarify per-entry-point paths and cwd resolution.
+  CONTRIBUTING.md: test_driver.py note verified empirically
+    (`pytest test_driver.py --collect-only -q` → 0 tests collected);
+    hardcoded receipt path /private/tmp/ai-dm-feat-pr/ documented;
+    game_server.py wheel-membership claim corrected (it IS in the wheel;
+    web/ and client/dist assets are not).
+  RUNBOOK.md: TestPyPI removed from release pipeline description; PyPI
+    file-deletion rollback claim corrected; VR table gained bare /xr and
+    OPTIONS rows; campaign table paths use {campaign_id}; docs-route and
+    static-mount notes added.
+  backend.md: route params corrected to {campaign_id}/{sound_name};
+    FastAPI auto-registered docs routes and web/ mount noted for
+    game_server; vr table gained bare /xr.
+  frontend.md: dice "modal" claim corrected — D20DiceRoller renders
+    inline; showDiceModal flag is toggled but unused.
+  architecture.md: trust boundaries rewritten — loopback is a launch
+    flag, not an app guarantee; X-Game-Token scope (Origin-gated,
+    write_token exposure, X-Game-Token header) documented; React offline
+    combat fallback noted as the exception to "mechanics stay in Python".
+  Round 3: campaign_mcp store ownership corrected (stdio->HTTP adapter, no
+    CampaignStore; api_server has its own fixed-path store);
+    AI_DM_AUDIO_DIR per-entry-point routing made exact; game_server FastAPI
+    import exception noted; campaign_service tracked-status contradiction
+    removed; dm_tui renderer separated from genui; client-side mechanics
+    fallbacks enumerated; Ollama timeouts split (tags 1.5 s / generate
+    configurable 3 s); trust-boundary token flow tightened; campaign state
+    shapes completed (id/revision/stage/game); chmod/fsync durability
+    claims narrowed; frontend resume/modal/type claims corrected; RUNBOOK
+    surfaces count, desktop fallback, port-default and verify_release
+    gates fixed; CONTRIBUTING CI trigger and 3-of-5 smoke count corrected;
+    dependencies httpx/tag-pattern claims fixed.
+
+== Route verification ==
+Declared routes transcribed into backend.md and RUNBOOK.md and checked
+against source decorators: engine/api_server.py 15, game_server.py 5,
+vr_server.py 6 (GET /api/surface, /api/state, POST /api/intent, GET /xr +
+/xr/*, GET /sfx/{name}.wav, GET /health, OPTIONS *). Path params match the
+source names ({campaign_id}, {sound_name}). FastAPI auto-registered
+GET/HEAD /docs, /redoc, /openapi.json, /docs/oauth2-redirect are noted
+separately in both files, as are the conditional static mounts
+(client/dist at / in api_server; web/ at / in game_server).
+
+== Working tree status (this checkout, 2026-11-24) ==
+  M  CONTRIBUTING.md
+  ?? .reports/
+  ?? docs/CODEMAPS/
+  ?? docs/ENV.md
+  ?? docs/RUNBOOK.md
+All other files — including campaign_service.py, game_server.py,
+test_campaign_service.py, test_game_server.py, test_web_accessibility.py,
+web/play.js — are tracked and clean. Earlier drafts of this report
+described those files as untracked/concurrently-added; that was stale.
