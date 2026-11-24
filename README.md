@@ -68,10 +68,9 @@ uvx ai-dungeon-master
 
 ## Try the browser demo
 
-The intended public URL is [GitHub Pages](https://remylovelogicai.github.io/ai-dungeon-master/).
-It currently returns 404 because Pages is not enabled for this repository.
-Enable **Settings → Pages → Build and deployment → Source: GitHub Actions**,
-then push to `main`. Until then, use the local prototype:
+**[Play the browser demo](https://remylovelogicai.github.io/ai-dungeon-master/)** —
+deployed from `web/` by GitHub Pages on every push to `main`.
+To run the same static client locally instead:
 
 ```bash
 uv run python web/build_demo.py
@@ -80,7 +79,7 @@ uv run python -m http.server 8765 --directory web
 ```
 
 `#scene=<id>` and `#encounter` open individual views. The browser client is an
-experimental, local-only prototype; it renders a supported subset of the DSL
+experimental prototype; it renders a supported subset of the DSL
 using safe text APIs and returns submitted intents as visible, copyable JSON
 envelopes. It does not execute combat actions or provide a hosted gameplay
 session.
