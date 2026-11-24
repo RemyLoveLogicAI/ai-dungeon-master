@@ -1,0 +1,36 @@
+project:
+  id: beeadb51-8b4a-4233-b32e-2a85e6f2e905
+session:
+  idle_timeout_seconds: 1800
+build:
+  framework: android
+  profiles:
+    development:
+      android:
+        build_commands:
+          - ./gradlew assembleDebug
+        output_path: app/build/outputs/apk/debug/app-debug.apk
+    preview:
+      android:
+        app_id: "986051b0-ccf3-4a4a-8cfb-041632c48df1"
+        build_commands:
+          - ./gradlew assembleDebug
+        output_path: app/build/outputs/apk/debug/app-debug.apk
+pr_review:
+  enabled: true
+  review_triggers:
+    paths: []
+    labels: []
+    drafts: false
+  build:
+    kind: revyl
+    profile: preview
+  proof_of_changes:
+    enabled: true
+    harness:
+      kind: revyl
+    system_prompt: ""
+    always_verify: []
+  workflow_ids: []
+  strict_ci_check:
+    build: true
